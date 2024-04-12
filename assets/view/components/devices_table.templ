@@ -1,0 +1,224 @@
+package components
+
+import (
+	"github.com/mudmap-io/backend-api/internal/repository"
+	"github.com/mudmap-io/backend-api/assets/view/common"
+	"strconv"
+	"fmt"
+)
+
+type Section struct {
+	Title       string
+	Href        string
+	Description string
+	Category    Category
+}
+type Category struct {
+	Name  string
+	Href  string
+	Color string
+}
+
+func NewSection(title, href, description string, category Category) Section {
+	return Section{Title: title, Href: href, Description: description, Category: category}
+}
+
+templ NoDevicesSection(section Section) {
+	<div>
+		<div>
+			<a href={ templ.SafeURL(section.Category.Href) } class="inline-block">
+				<span class={ "inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium", templ.KV(section.Category.Color, true) }>
+					{ section.Category.Name }
+				</span>
+			</a>
+		</div>
+		<a href={ templ.SafeURL(section.Category.Href) } class="block mt-4">
+			<p class="text-xl font-semibold text-gray-900">{ section.Title }</p>
+			<p class="mt-3 text-base text-gray-500">{ section.Description }</p>
+		</a>
+	</div>
+}
+
+templ NoDevicesTable() {
+	<div
+		class="bg-white pt-16 pb-20 px-4 sm:px-6 lg:pt-14 lg:pb-18 lg:px-8"
+	>
+		<div
+			class="relative max-w-lg mx-auto divide-y-2 divide-gray-200 lg:max-w-7xl"
+		>
+			<div>
+				<h2
+					class="text-3xl tracking-tight font-extrabold text-gray-900 sm:text-4xl"
+				>
+					Welcome
+				</h2>
+				<p class="mt-3 text-xl text-gray-500 sm:mt-4">
+					Looks like you're new here. I've created some handy resources below
+					to get you up to speed and using Mudmap in no time.
+				</p>
+				<p class="mt-3 text-xl text-gray-500 sm:mt-4">
+					Cheers,
+					<br class="inline"/>
+					Dan
+				</p>
+			</div>
+			<div
+				class="mt-12 grid gap-16 pt-12 lg:grid-cols-3 lg:gap-x-5 lg:gap-y-12"
+			>
+				@NoDevicesSection(NewSection("Add your first firewall", "/devices/new", "If you've read over the documentation and prepared your device for the initial connection then let's get started!", Category{Href: "/devices/new", Name: "Add Devices", Color: "bg-indigo-100 text-indigo-800"}))
+				@NoDevicesSection(NewSection("Read the Documentation", "https://docs.mudmap.io?ref=no-devices", "Using Mudmap for the first time requires you to do some steps on your device. Read the 'Preparing Your Device' pages for a getting up and running quickly.", Category{Href: "https://docs.mudmap.io", Name: "Docs", Color: "bg-green-100 text-green-800"}))
+				@NoDevicesSection(NewSection("Get in contact", "https://mudmap.io/contact?ref=no-devices", "This is the place to go if things aren't working, guides are not good enough or you just want to get in touch to discuss something.", Category{Href: "https://mudmap.io/contact", Name: "Help", Color: "bg-pink-100 text-pink-800"}))
+			</div>
+		</div>
+	</div>
+}
+
+templ ActiveDeviceTableRow(device repository.TeamGetAllDevicesRow) {
+	<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{ device.DeviceName }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ device.HostAddress }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ strconv.Itoa(int(device.SshPort)) }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ strconv.Itoa(int(device.HttpPort)) }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ device.DeviceVersion }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-center text-gray-500">
+		<a
+			href={ templ.SafeURL(fmt.Sprintf("/device/%s/system", device.DeviceID)) }
+			class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+		>View<span class="sr-only">, { device.DeviceName }</span></a>
+		<a
+			href="#"
+			hx-confirm="This will permanently delete this device. Continue?"
+			hx-delete={ common.DeleteDevice(device.DeviceID) }
+			hx-swap="show:none"
+			hx-target="closest tr"
+			class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400"
+		>Delete<span class="sr-only">, { device.DeviceName }</span></a>
+	</td>
+}
+
+templ InactiveDeviceTableRow(device repository.TeamGetAllDevicesRow) {
+	<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{ device.DeviceName }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ device.HostAddress }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ strconv.Itoa(int(device.SshPort)) }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ strconv.Itoa(int(device.HttpPort)) }</td>
+	<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{ device.DeviceVersion }</td>
+	<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+		<button
+			hx-post={ common.GenerateURL(fmt.Sprintf("/fragment/device/%s/register/validate", device.DeviceID)) }
+			hx-prompt="Enter the root password"
+			hx-confirm="Continue?"
+			hx-indicator={ fmt.Sprintf("#htmx-indicator-%s", device.DeviceID) }
+			hx-swap="show:none"
+			hx-target="body"
+			class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+		>
+			Activate<span class="sr-only">, { device.DeviceName }</span>
+			<span id={ fmt.Sprintf("htmx-indicator-%s", device.DeviceID) } class="mr-2 animate-spin htmx-indicator">
+				@common.AnimateSpinner()
+			</span>
+		</button>
+	</td>
+	<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+		<a href={ templ.SafeURL(fmt.Sprintf("/device/%s/update", device.DeviceID)) } class="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Update<span class="sr-only">, { device.DeviceName }</span></a>
+	</td>
+	<td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+		<a
+			href="#"
+			hx-confirm="This will permanently delete this device. Continue?"
+			hx-delete={ common.DeleteDevice(device.DeviceID) }
+			hx-swap="show:none"
+			hx-target="closest tr"
+			class="rounded-md bg-red-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400"
+		>Delete<span class="sr-only">, { device.DeviceName }</span></a>
+	</td>
+}
+
+templ ActiveDevicesTable(devices []repository.TeamGetAllDevicesRow) {
+	<div id="device-table">
+		<div class="px-4 sm:px-6 lg:px-8">
+			<div class="sm:flex sm:items-center">
+				<div class="sm:flex-auto">
+					<h1 class="text-base font-semibold leading-6 text-gray-900">Active Devices</h1>
+					<p class="mt-2 text-sm text-gray-700">A list of all the devices in your account including their name, IP and port details.</p>
+				</div>
+				<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+					<a href="/devices/new" type="button" class="block rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add New Device</a>
+				</div>
+			</div>
+			<div class="mt-8 flow-root">
+				<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+					<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+						<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+							<table class="min-w-full divide-y divide-gray-300">
+								<thead class="bg-gray-50">
+									<tr>
+										<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">IP</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">SSH Port</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">HTTP Port</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Version</th>
+										<th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-200 bg-white">
+									for _, d := range devices {
+										<tr>
+											@ActiveDeviceTableRow(d)
+										</tr>
+									}
+									<!-- More people... -->
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ InactiveDevicesTable(devices []repository.TeamGetAllDevicesRow) {
+	<div id="inactive-device-table">
+		<div class="px-4 sm:px-6 lg:px-8">
+			<div class="sm:flex sm:items-center">
+				<div class="sm:flex-auto">
+					<h1 class="text-base font-semibold leading-6 text-gray-900">Inactive Devices</h1>
+					<p class="mt-2 text-sm text-gray-700">
+						Devices listed in the table have been registered in the Mudmap database but are <span class="font-bold">not yet</span> connected to the service.
+					</p>
+				</div>
+				<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+					<a href="/devices/new" type="button" class="block rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add New Device</a>
+				</div>
+			</div>
+			<div class="mt-8 flow-root">
+				<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+					<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+						<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+							<table class="min-w-full divide-y divide-gray-300">
+								<thead class="bg-gray-50">
+									<tr>
+										<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">IP</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">SSH Port</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">HTTP Port</th>
+										<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Version</th>
+										<th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Activate</th>
+										<th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Update</th>
+										<th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Delete</th>
+									</tr>
+								</thead>
+								<tbody id="inactive-device-table-body" class="divide-y divide-gray-200 bg-white">
+									for _, d := range devices {
+										<tr>
+											@InactiveDeviceTableRow(d)
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}

@@ -1,0 +1,43 @@
+package components
+
+import (
+	"github.com/mudmap-io/backend-api"
+	"fmt"
+	"github.com/mudmap-io/backend-api/internal/render"
+)
+
+func pollDuration(i string) string {
+	return i
+}
+
+templ SystemInformation(deviceID string, homeNav, deviceNav render.NavbarHeadings) {
+	<div class="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-6">
+		<div class="text-sm font-medium leading-6 text-gray-900">System Information</div>
+	</div>
+	<div class="divide-y divide-gray-100">
+		<div hx-get={ fmt.Sprintf("/fragment/device/%s/system-hostname", deviceID) } hx-trigger={ fmt.Sprintf("load, every %ss", pollDuration("15")) } hx-swap="innerHTML">click</div>
+		<div hx-get={ fmt.Sprintf("/fragment/device/%s/status-system", deviceID) } hx-trigger={ fmt.Sprintf("load, every %ss", pollDuration("15")) } hx-swap="innerHTML">click</div>
+		<div hx-get={ fmt.Sprintf("/fragment/device/%s/system-version", deviceID) } hx-trigger={ fmt.Sprintf("load, every %ss", pollDuration("15")) } hx-swap="innerHTML">click</div>
+		<div hx-get={ fmt.Sprintf("/fragment/device/%s/system-dns", deviceID) } hx-trigger={ fmt.Sprintf("load, every %ss", pollDuration("15")) } hx-swap="innerHTML">click</div>
+	</div>
+}
+
+templ SystemVersion(data mudmap.SystemVersionResponse) {
+	<dl class="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm leading-6">
+		<div class="flex justify-between gap-x-4 py-3">
+			<dt class="text-gray-500">Version</dt>
+			<div class="text-sm text-gray-500">{ data.Data.Version }</div>
+		</div>
+	</dl>
+}
+
+templ SystemHostname(data mudmap.SystemHostnameResponse) {
+	<dl class="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm leading-6">
+		<div class="flex justify-between gap-x-4 py-3">
+			<dt class="text-gray-500">Hostname</dt>
+			<ul>
+				<div class="text-sm text-gray-500">{ data.Data.Hostname }.{ data.Data.Domain }</div>
+			</ul>
+		</div>
+	</dl>
+}

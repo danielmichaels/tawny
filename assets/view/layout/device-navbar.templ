@@ -1,0 +1,22 @@
+package layout
+
+import "github.com/mudmap-io/backend-api/internal/render"
+
+templ DeviceSecondaryNavbar(nav render.NavbarHeadings) {
+	<div class="relative isolate overflow-hidden pt-16">
+		<!-- Secondary navigation -->
+		<header class="pb-4 pt-6 sm:pb-6">
+			<div class="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 sm:flex-nowrap sm:px-6 lg:px-8">
+				<h1 class="text-base font-semibold leading-7 text-gray-900">{ nav.Title }</h1>
+				<div class="order-last flex w-full gap-x-8 text-sm font-semibold leading-6 sm:order-none sm:w-auto sm:border-l sm:border-gray-200 sm:pl-6 sm:leading-7">
+					for _, h := range nav.Headings {
+						<a
+							class={ templ.KV("text-gray-700", !h.Active), templ.KV("text-indigo-600", h.Active) }
+							href={ templ.SafeURL(h.URL) }
+						>{ h.Name }</a>
+					}
+				</div>
+			</div>
+		</header>
+	</div>
+}

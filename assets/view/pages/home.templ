@@ -1,0 +1,23 @@
+package pages
+
+import (
+	"github.com/mudmap-io/backend-api/assets/view/layout"
+	"github.com/mudmap-io/backend-api/assets/view/components"
+	"github.com/mudmap-io/backend-api/assets/view/common"
+	"github.com/mudmap-io/backend-api/internal/render"
+	"github.com/mudmap-io/backend-api/internal/repository"
+)
+
+templ DashboardHome(homeNav, deviceNav render.NavbarHeadings, devices []repository.TeamGetAllDevicesRow, errMsg *common.FlashMessage) {
+	@layout.Base() {
+		@layout.DeviceNavbar(homeNav, deviceNav, errMsg)
+		<div class="relative isolate overflow-hidden py-16">
+			if len(devices) == 0 {
+				@components.NoDevicesTable()
+			}
+			if len(devices) != 0 {
+				@components.ActiveDevicesTable(devices)
+			}
+		</div>
+	}
+}
