@@ -14,7 +14,7 @@ tasks:
   dev:
     desc: Run server
     cmds:
-    - air -- -console
+    - air -- -console {{.CLI_ARGS}}
 
   tidy:
     desc: go mod tidy

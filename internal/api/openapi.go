@@ -4,18 +4,18 @@ import (
 	"context"
 	"github.com/danielmichaels/lappycloud"
 	"github.com/danielmichaels/lappycloud/gen/openapi"
+	"github.com/danielmichaels/lappycloud/internal/logger"
 	"io"
-	"log"
 )
 
 // openapi service example implementation.
 // The example methods log the requests and return zero values.
 type openapisrvc struct {
-	logger *log.Logger
+	logger *logger.Logger
 }
 
 // NewOpenapi returns the openapi service implementation.
-func NewOpenapi(logger *log.Logger) openapi.Service {
+func NewOpenapi(logger *logger.Logger) openapi.Service {
 	return &openapisrvc{logger}
 }
 

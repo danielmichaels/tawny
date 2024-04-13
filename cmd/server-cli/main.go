@@ -35,7 +35,11 @@ func main() {
 			case "localhost":
 				addr = "http://localhost:9090"
 			default:
-				fmt.Fprintf(os.Stderr, "invalid host argument: %q (valid hosts: localhost)\n", *hostF)
+				fmt.Fprintf(
+					os.Stderr,
+					"invalid host argument: %q (valid hosts: localhost)\n",
+					*hostF,
+				)
 				os.Exit(1)
 			}
 		}

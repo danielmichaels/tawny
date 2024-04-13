@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/danielmichaels/lappycloud/internal/api"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -15,26 +13,37 @@ import (
 
 	monitoring "github.com/danielmichaels/lappycloud/gen/monitoring"
 	openapi "github.com/danielmichaels/lappycloud/gen/openapi"
+	lappycloud "github.com/danielmichaels/lappycloud/internal/api"
+	svclogger "github.com/danielmichaels/lappycloud/internal/logger"
 )
 
 func main() {
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
-		hostF     = flag.String("host", "localhost", "Server host (valid values: localhost)")
-		domainF   = flag.String("domain", "", "Host domain name (overrides host domain specified in service design)")
-		httpPortF = flag.String("http-port", "", "HTTP port (overrides host HTTP port specified in service design)")
+		hostF   = flag.String("host", "localhost", "Server host (valid values: localhost)")
+		domainF = flag.String(
+			"domain",
+			"",
+			"Host domain name (overrides host domain specified in service design)",
+		)
+		httpPortF = flag.String(
+			"http-port",
+			"",
+			"HTTP port (overrides host HTTP port specified in service design)",
+		)
 		secureF   = flag.Bool("secure", false, "Use secure scheme (https or grpcs)")
 		dbgF      = flag.Bool("debug", false, "Log request and response bodies")
+		isConsole = flag.Bool("console", false, "Use zerolog ConsoleWriter")
 	)
 	flag.Parse()
 
 	// Setup logger. Replace logger with your own log package of choice.
 	var (
-		logger *log.Logger
+		logger *svclogger.Logger
 	)
 	{
-		logger = log.New(os.Stderr, "[lappycloud] ", log.Ltime)
+		logger = svclogger.New("api", *dbgF, *isConsole)
 	}
 
 	// Initialize the services.
@@ -43,8 +52,8 @@ func main() {
 		openapiSvc    openapi.Service
 	)
 	{
-		monitoringSvc = api.NewMonitoring(logger)
-		openapiSvc = api.NewOpenapi(logger)
+		monitoringSvc = lappycloud.NewMonitoring(logger)
+		openapiSvc = lappycloud.NewOpenapi(logger)
 	}
 
 	// Wrap the services in endpoints that can be invoked from other services
@@ -80,7 +89,7 @@ func main() {
 			addr := "http://localhost:9090"
 			u, err := url.Parse(addr)
 			if err != nil {
-				logger.Fatalf("invalid URL %#v: %s\n", addr, err)
+				logger.Fatal().Msgf("invalid URL %#v: %s\n", addr, err)
 			}
 			if *secureF {
 				u.Scheme = "https"
@@ -91,25 +100,34 @@ func main() {
 			if *httpPortF != "" {
 				h, _, err := net.SplitHostPort(u.Host)
 				if err != nil {
-					logger.Fatalf("invalid URL %#v: %s\n", u.Host, err)
+					logger.Fatal().Msgf("invalid URL %#v: %s\n", addr, err)
 				}
 				u.Host = net.JoinHostPort(h, *httpPortF)
 			} else if u.Port() == "" {
 				u.Host = net.JoinHostPort(u.Host, "80")
 			}
-			handleHTTPServer(ctx, u, monitoringEndpoints, openapiEndpoints, &wg, errc, logger, *dbgF)
+			handleHTTPServer(
+				ctx,
+				u,
+				monitoringEndpoints,
+				openapiEndpoints,
+				&wg,
+				errc,
+				logger,
+				*dbgF,
+			)
 		}
 
 	default:
-		logger.Fatalf("invalid host argument: %q (valid hosts: localhost)\n", *hostF)
+		logger.Fatal().Msgf("invalid host argument: %q (valid hosts: localhost)\n", *hostF)
 	}
 
 	// Wait for signal.
-	logger.Printf("exiting (%v)", <-errc)
+	logger.Info().Msgf("exiting (%v)", <-errc)
 
 	// Send cancellation signal to the goroutines.
 	cancel()
 
 	wg.Wait()
-	logger.Println("exited")
+	logger.Info().Msg("exited")
 }

@@ -2,20 +2,19 @@ package api
 
 import (
 	"context"
-	"github.com/danielmichaels/lappycloud/internal/version"
-	"log"
-
 	monitoring "github.com/danielmichaels/lappycloud/gen/monitoring"
+	"github.com/danielmichaels/lappycloud/internal/logger"
+	"github.com/danielmichaels/lappycloud/internal/version"
 )
 
 // monitoring service example implementation.
 // The example methods log the requests and return zero values.
 type monitoringsrvc struct {
-	logger *log.Logger
+	logger *logger.Logger
 }
 
 // NewMonitoring returns the monitoring service implementation.
-func NewMonitoring(logger *log.Logger) monitoring.Service {
+func NewMonitoring(logger *logger.Logger) monitoring.Service {
 	return &monitoringsrvc{logger}
 }
 

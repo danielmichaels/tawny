@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	svclogger "github.com/danielmichaels/lappycloud/internal/logger"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,14 +20,23 @@ import (
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
 // URL. It shuts down the server if any error is received in the error channel.
-func handleHTTPServer(ctx context.Context, u *url.URL, monitoringEndpoints *monitoring.Endpoints, openapiEndpoints *openapi.Endpoints, wg *sync.WaitGroup, errc chan error, logger *log.Logger, debug bool) {
+func handleHTTPServer(
+	ctx context.Context,
+	u *url.URL,
+	monitoringEndpoints *monitoring.Endpoints,
+	openapiEndpoints *openapi.Endpoints,
+	wg *sync.WaitGroup,
+	errc chan error,
+	logger *svclogger.Logger,
+	debug bool,
+) {
 
 	// Setup goa log adapter.
 	var (
 		adapter middleware.Logger
 	)
 	{
-		adapter = middleware.NewLogger(logger)
+		adapter = logger
 	}
 
 	// Provide the transport specific request decoder and response encoder.
@@ -82,10 +91,10 @@ func handleHTTPServer(ctx context.Context, u *url.URL, monitoringEndpoints *moni
 	// configure the server as required by your service.
 	srv := &http.Server{Addr: u.Host, Handler: handler, ReadHeaderTimeout: time.Second * 60}
 	for _, m := range monitoringServer.Mounts {
-		logger.Printf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 	for _, m := range openapiServer.Mounts {
-		logger.Printf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 
 	(*wg).Add(1)
@@ -94,12 +103,12 @@ func handleHTTPServer(ctx context.Context, u *url.URL, monitoringEndpoints *moni
 
 		// Start HTTP server in a separate goroutine.
 		go func() {
-			logger.Printf("HTTP server listening on %q", u.Host)
+			logger.Info().Msgf("API server listening on %q", u.Host)
 			errc <- srv.ListenAndServe()
 		}()
 
 		<-ctx.Done()
-		logger.Printf("shutting down HTTP server at %q", u.Host)
+		logger.Info().Msgf("shutting down API server at %q", u.Host)
 
 		// Shutdown gracefully with a 30s timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -107,7 +116,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, monitoringEndpoints *moni
 
 		err := srv.Shutdown(ctx)
 		if err != nil {
-			logger.Printf("failed to shutdown: %v", err)
+			logger.Fatal().Msgf("failed to shutdown: %v", err)
 		}
 	}()
 }
@@ -115,7 +124,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, monitoringEndpoints *moni
 // errorHandler returns a function that writes and logs the given error.
 // The function also writes and logs the error unique ID so that it's possible
 // to correlate.
-func errorHandler(logger *log.Logger) func(context.Context, http.ResponseWriter, error) {
+func errorHandler(logger *svclogger.Logger) func(context.Context, http.ResponseWriter, error) {
 	return func(ctx context.Context, w http.ResponseWriter, err error) {
 		id := ctx.Value(middleware.RequestIDKey).(string)
 		_, _ = w.Write([]byte("[" + id + "] encoding: " + err.Error()))
