@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   tawny:
     image: "docker.io/danielmichaels/tawny:${LATEST_RELEASE:-latest}"
