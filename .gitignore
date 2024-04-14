@@ -31,3 +31,5 @@ node_modules
 assets/static/css/theme.css
 assets/static/js/bundle.js
 *_templ.go
+
+dist/
