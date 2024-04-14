@@ -1,0 +1,240 @@
+#!/bin/bash
+set -e -x -o pipefail
+
+export OWNER="danielmichaels"
+export REPO="tawny"
+export ARKADE=/usr/local/bin/arkade
+# When running as a startup script (cloud-init), the HOME variable is not always set.
+# As it is required for arkade to properly download tools,
+# set the variable to /usr/local so arkade will download binaries to /usr/local/.arkade
+if [ -z "${HOME}" ]; then
+  export HOME=/usr/local
+fi
+
+K3S_VERSION="v1.29.3+k3s1"
+DOCKER_VERSION="24.0"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
+TAWNY_DOMAIN="${TAWNY_DOMAIN:-}"
+TAWNY_PORT="${TAWNY_PORT:-9090}"
+LATEST_RELEASE="${VERSION:-latest}"
+export LATEST_RELEASE
+
+echo "Finding latest version from GitHub"
+VERSION=$(curl -sI https://github.com/$OWNER/$REPO/releases/latest | grep -i "location:" | awk -F"/" '{ printf "%s", $NF }' | tr -d '\r')
+echo "$VERSION"
+
+if [ ! "$VERSION" ]; then
+  echo "Failed while attempting to get latest version"
+  exit 1
+fi
+
+if [ ! "$LETSENCRYPT_EMAIL" ]; then
+  echo "No Let's Encrypt email set; Caddy will not be able to get a TLS cert for the Domain"
+fi
+if [ ! "$TAWNY_DOMAIN" ]; then
+  echo "No Domain set; Caddy defaulting to port 80"
+fi
+
+SUDO=sudo
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=
+fi
+
+verify_system() {
+  if ! [ -d /run/systemd ]; then
+    fatal 'Can not find systemd to use as a process supervisor for faasd'
+  fi
+}
+
+has_yum() {
+  [ -n "$(command -v yum)" ]
+}
+
+has_apt_get() {
+  [ -n "$(command -v apt-get)" ]
+}
+
+has_pacman() {
+  [ -n "$(command -v pacman)" ]
+}
+
+install_required_packages() {
+  if $(has_apt_get); then
+    # Debian bullseye is missing iptables. Added to required packages
+    # to get it working in raspberry pi. No such known issues in
+    # other distros. Hence, adding only to this block.
+    # reference: https://github.com/openfaas/faasd/pull/237
+    $SUDO apt-get update -y
+    $SUDO apt-get install -y curl jq iptables
+  elif $(has_yum); then
+    $SUDO yum check-update -y
+    $SUDO yum install -y curl jq
+  elif $(has_pacman); then
+    $SUDO pacman -Syy
+    $SUDO pacman -Sy curl jq
+  else
+    fatal "Could not find apt-get, yum, or pacman. Cannot install dependencies on this OS."
+    exit 1
+  fi
+}
+
+is_ssh_running() {
+  # Detect OpenSSH server
+  SSH_DETECTED=false
+  if [ -x "$(command -v systemctl)" ]; then
+    if systemctl status sshd >/dev/null 2>&1; then
+      echo "OpenSSH server is installed."
+      SSH_DETECTED=true
+    fi
+    if systemctl status ssh >/dev/null 2>&1; then
+      echo "OpenSSH server is installed."
+      SSH_DETECTED=true
+    fi
+  elif [ -x "$(command -v service)" ]; then
+    if service sshd status >/dev/null 2>&1; then
+      echo "OpenSSH server is installed."
+      SSH_DETECTED=true
+    fi
+    if service ssh status >/dev/null 2>&1; then
+      echo "OpenSSH server is installed."
+      SSH_DETECTED=true
+    fi
+  fi
+  if [ "$SSH_DETECTED" = "false" ]; then
+    echo "###############################################################################"
+    echo "WARNING: Could not detect if OpenSSH server is installed and running - "
+    echo "this does not mean that it is not installed, just that we could not detect it."
+    echo "Please make sure it is set, otherwise we cannot connect to the host system."
+    echo "###############################################################################"
+  fi
+}
+
+install_arkade() {
+  curl -sLS https://get.arkade.dev | $SUDO sh
+  arkade --help
+  add_arkade_to_bash
+  install_arkade_tools
+}
+
+add_arkade_to_bash() {
+  echo "export PATH=$HOME/.arkade/bin:$PATH" >>.bashrc
+}
+
+install_arkade_tools() {
+  arkade get k9s
+}
+
+install_caddy() {
+    CADDY_VER=v2.7.6
+    arkade get --progress=false caddy -v ${CADDY_VER}
+
+    # /usr/bin/caddy is specified in the upstream service file.
+    $SUDO install -m 755 "$HOME"/.arkade/bin/caddy /usr/bin/caddy
+
+    $SUDO curl -fSLs https://raw.githubusercontent.com/caddyserver/dist/master/init/caddy.service --output /etc/systemd/system/caddy.service
+
+    $SUDO mkdir -p /etc/caddy
+    $SUDO mkdir -p /var/lib/caddy
+
+    if $(id caddy >/dev/null 2>&1); then
+      echo "User caddy already exists."
+    else
+      $SUDO useradd --system --home /var/lib/caddy --shell /bin/false caddy
+    fi
+
+    $SUDO tee /etc/caddy/Caddyfile >/dev/null <<EOF
+{
+  email "${LETSENCRYPT_EMAIL}"
+}
+
+${TAWNY_DOMAIN:-:80} {
+  reverse_proxy 127.0.0.1:${TAWNY_PORT}
+}
+EOF
+
+    $SUDO chown --recursive caddy:caddy /var/lib/caddy
+    $SUDO chown --recursive caddy:caddy /etc/caddy
+
+    $SUDO systemctl enable caddy
+    $SUDO systemctl start caddy
+}
+
+install_cli() {
+  echo "curl down the binary"
+  echo "$SUDO install -m 755 $HOME/.arkade/bin/faas-cli /usr/local/bin/"
+}
+
+install_k3s() {
+  echo "Installing k3s $K3S_VERSION"
+  curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" sh -
+}
+
+is_docker_snap() {
+  # Detect if docker is installed via snap
+  if [ -x "$(command -v snap)" ]; then
+    if snap list | grep -q docker; then
+      echo "Docker is installed via snap."
+      echo "Please remove Docker with snap (snap remove docker) and execute this script."
+      echo "Docker in snap will result in odd behaviour from the application and cannot be used."
+      exit 1
+    fi
+  fi
+}
+
+install_docker() {
+  # exit early if docker is snap installed
+  is_docker_snap
+  # automated script
+  if ! [ -x "$(command -v docker)" ]; then
+    echo "Docker is not installed. Installing Docker."
+    curl https://releases.rancher.com/install-docker/${DOCKER_VERSION}.sh | sh
+    if [ -x "$(command -v docker)" ]; then
+      echo "Docker installed successfully."
+    else
+      echo "Docker installation failed with Rancher script. Trying with official script."
+      curl https://get.docker.com | sh -s -- --version ${DOCKER_VERSION}
+      if [ -x "$(command -v docker)" ]; then
+        echo "Docker installed successfully."
+      else
+        echo "Docker installation failed with official script."
+        echo "Maybe your OS is not supported?"
+        echo "Please visit https://docs.docker.com/engine/install/ and install Docker manually to continue."
+        exit 1
+      fi
+    fi
+  fi
+
+}
+
+non_root_docker() {
+  $SUDO usermod -aG docker "$USER"
+  newgrp docker
+}
+
+enable_docker_ip_forwarding() {
+  $SUDO /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
+  echo "net.ipv4.conf.all.forwarding=1" | $SUDO tee -a /etc/sysctl.conf
+}
+
+make_directories() {
+  $SUDO mkdir -p /var/tawny/{source,}
+}
+
+install_tawny() {
+  $SUDO curl -sfL https://raw.githubusercontent.com/danielmichaels/tawny/installer2/docker-compose.yml -o /var/tawny/source/docker-compose.yml
+  $SUDO docker compose -f /var/tawny/source/docker-compose.yml up --pull always --remove-orphans --force-recreate --detach
+}
+
+verify_system
+install_required_packages
+install_arkade
+is_ssh_running
+install_k3s
+install_docker
+enable_docker_ip_forwarding
+install_cli
+make_directories
+install_caddy
+install_tawny
+# must come last as it exits the script
+non_root_docker
