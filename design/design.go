@@ -34,7 +34,7 @@ var (
 // I think of this as the "headings" to a OpenAPI spec for lack of a better analogy
 var _ = API(fmt.Sprintf("%s", assets.AppName), func() {
 	Title(fmt.Sprintf("%s Service", assets.AppName))
-	Description("HTTP service for Mudmap")
+	Description("API service for tawny")
 	HTTP(func() {
 		Path("/v1")
 	})
