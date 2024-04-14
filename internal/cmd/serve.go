@@ -73,7 +73,7 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			var wg sync.WaitGroup
 			ctx, cancel := context.WithCancel(ctx)
 
-			addr := "http://localhost:9090"
+			addr := "http://0.0.0.0:9090"
 			u, err := url.Parse(addr)
 			if err != nil {
 				logger.Fatal().Msgf("invalid URL %#v: %s\n", addr, err)
