@@ -1,0 +1,20 @@
+version: "3.7"
+
+services:
+  tawny:
+    image: "docker.io/danielmichaels/tawny:${LATEST_RELEASE:-latest}"
+    container_name: tawny_server
+    restart: always
+    ports:
+      - "${TAWNY_PORT:-9090}:9090"
+    expose:
+      - "${TAWNY_PORT:-9090}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: curl --fail http://localhost:${TAWNY_PORT}/v1/healthz || exit 1
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    volumes:
+      - /etc/rancher/k3s/k3s.yaml:/app/kubeconfig
