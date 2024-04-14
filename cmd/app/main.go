@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/danielmichaels/lappycloud/internal/cmd"
+	"github.com/danielmichaels/tawny/internal/cmd"
 	"os"
 	"os/signal"
 )

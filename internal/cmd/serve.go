@@ -3,12 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
-	monitoringsvr "github.com/danielmichaels/lappycloud/gen/http/monitoring/server"
-	openapisvr "github.com/danielmichaels/lappycloud/gen/http/openapi/server"
-	"github.com/danielmichaels/lappycloud/gen/monitoring"
-	"github.com/danielmichaels/lappycloud/gen/openapi"
-	lappycloud "github.com/danielmichaels/lappycloud/internal/api"
-	svclogger "github.com/danielmichaels/lappycloud/internal/logger"
+	monitoringsvr "github.com/danielmichaels/tawny/gen/http/monitoring/server"
+	openapisvr "github.com/danielmichaels/tawny/gen/http/openapi/server"
+	"github.com/danielmichaels/tawny/gen/monitoring"
+	"github.com/danielmichaels/tawny/gen/openapi"
+	tawny "github.com/danielmichaels/tawny/internal/api"
+	svclogger "github.com/danielmichaels/tawny/internal/logger"
 	"github.com/spf13/cobra"
 	goahttp "goa.design/goa/v3/http"
 	httpmdlwr "goa.design/goa/v3/http/middleware"
@@ -43,8 +43,8 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 				openapiSvc    openapi.Service
 			)
 			{
-				monitoringSvc = lappycloud.NewMonitoring(logger)
-				openapiSvc = lappycloud.NewOpenapi(logger)
+				monitoringSvc = tawny.NewMonitoring(logger)
+				openapiSvc = tawny.NewOpenapi(logger)
 			}
 
 			// Wrap the services in endpoints that can be invoked from other services

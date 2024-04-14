@@ -9,12 +9,12 @@ package design
 
 import (
 	"fmt"
+	assets "github.com/danielmichaels/tawny"
 	. "goa.design/goa/v3/dsl"
 	cors "goa.design/plugins/v3/cors/dsl"
 )
 
 const (
-	AppName           = "LappyCloud"
 	userRx            = "^user_[a-zA-Z0-9]{12}$"
 	teamRx            = "^team_[a-zA-Z0-9]{12}$"
 	keyRx             = "^key_[a-zA-Z0-9]{12}$"
@@ -32,8 +32,8 @@ var (
 // API describes the global properties of the API server.
 //
 // I think of this as the "headings" to a OpenAPI spec for lack of a better analogy
-var _ = API(fmt.Sprintf("%s", AppName), func() {
-	Title(fmt.Sprintf("%s Service", AppName))
+var _ = API(fmt.Sprintf("%s", assets.AppName), func() {
+	Title(fmt.Sprintf("%s Service", assets.AppName))
 	Description("HTTP service for Mudmap")
 	HTTP(func() {
 		Path("/v1")

@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
-	"github.com/danielmichaels/lappycloud"
-	"github.com/danielmichaels/lappycloud/gen/openapi"
-	"github.com/danielmichaels/lappycloud/internal/logger"
+	"github.com/danielmichaels/tawny"
+	"github.com/danielmichaels/tawny/gen/openapi"
+	"github.com/danielmichaels/tawny/internal/logger"
 	"io"
 )
 

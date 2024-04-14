@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
-	monitoring "github.com/danielmichaels/lappycloud/gen/monitoring"
-	"github.com/danielmichaels/lappycloud/internal/logger"
-	"github.com/danielmichaels/lappycloud/internal/version"
+	"github.com/danielmichaels/tawny/gen/monitoring"
+	"github.com/danielmichaels/tawny/internal/logger"
+	"github.com/danielmichaels/tawny/internal/version"
 )
 
 // monitoring service example implementation.

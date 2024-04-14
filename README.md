@@ -1,11 +1,11 @@
-# LappyCloud
+# Tawny
 
 > Self-hosted application platform for solo developers and small teams who don't want the overhead of a full
 > kubernetes cluster
 
 ## Overview
 
-LappyCloud is an open-source alternative to Render and Heroku. Self-hosting is the primary use-case.
+Tawny is an open-source alternative to Render and Heroku. Self-hosting is the primary use-case.
 
 Run you applications from a simple dockerfile or a full kubernetes manifest. Free TLS from Let's Encrypt ensures
 your externally exposed applications are secure from the get go. 
