@@ -123,6 +123,12 @@ add_arkade_to_bash() {
 install_arkade_tools() {
   arkade get k9s
 }
+install_traefik2() {
+  arkade install traefik2 --dashboard --wait
+}
+install_cert_manager() {
+  arkade install cert-manager --wait
+}
 
 install_caddy() {
     CADDY_VER=v2.7.6
@@ -159,14 +165,15 @@ EOF
     $SUDO systemctl start caddy
 }
 
-install_cli() {
-  echo "curl down the binary"
-  echo "$SUDO install -m 755 $HOME/.arkade/bin/faas-cli /usr/local/bin/"
-}
-
 install_k3s() {
   echo "Installing k3s $K3S_VERSION"
-  curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" sh -
+  curl -sfL https://get.k3s.io | \
+  K3S_KUBECONFIG_MODE="644" \
+  INSTALL_K3S_EXEC="--disable traefik" \
+  sh -
+  export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+  install_traefik2
+  install_cert_manager
 }
 
 is_docker_snap() {
@@ -225,6 +232,11 @@ install_tawny() {
   $SUDO docker compose -f /var/tawny/source/docker-compose.yml up --pull always --remove-orphans --force-recreate --detach
 }
 
+printer() {
+  echo -e "\nCongratulations! Your Tawny instance is ready to use.\n"
+  echo "Please visit http://$(curl -4s https://ifconfig.io):9090 to get started."
+}
+
 verify_system
 install_required_packages
 install_arkade
@@ -232,9 +244,9 @@ is_ssh_running
 install_k3s
 install_docker
 enable_docker_ip_forwarding
-install_cli
 make_directories
 install_caddy
 install_tawny
+printer
 # must come last as it exits the script
 non_root_docker
