@@ -3,6 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	monitoringsvr "github.com/danielmichaels/tawny/gen/http/monitoring/server"
 	openapisvr "github.com/danielmichaels/tawny/gen/http/openapi/server"
 	"github.com/danielmichaels/tawny/gen/monitoring"
@@ -13,13 +21,6 @@ import (
 	goahttp "goa.design/goa/v3/http"
 	httpmdlwr "goa.design/goa/v3/http/middleware"
 	"goa.design/goa/v3/middleware"
-	"net/http"
-	"net/url"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 func ServeCmd(ctx context.Context) *cobra.Command {

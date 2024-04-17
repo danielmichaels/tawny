@@ -2,10 +2,11 @@ package api
 
 import (
 	"context"
-	"github.com/danielmichaels/tawny"
+	"io"
+
+	assets "github.com/danielmichaels/tawny"
 	"github.com/danielmichaels/tawny/gen/openapi"
 	"github.com/danielmichaels/tawny/internal/logger"
-	"io"
 )
 
 // openapi service example implementation.
@@ -19,7 +20,9 @@ func NewOpenapi(logger *logger.Logger) openapi.Service {
 	return &openapisrvc{logger}
 }
 
-func (o openapisrvc) File(ctx context.Context) (res *openapi.FileResult, body io.ReadCloser, err error) {
+func (o openapisrvc) File(
+	ctx context.Context,
+) (res *openapi.FileResult, body io.ReadCloser, err error) {
 	f, err := assets.EmbeddedFiles.Open("gen/http/openapi3.json")
 	if err != nil {
 		return nil, nil, openapi.MakeInvalidFilePath(err)
@@ -34,7 +37,9 @@ func (o openapisrvc) File(ctx context.Context) (res *openapi.FileResult, body io
 	}, f, nil
 }
 
-func (o openapisrvc) Documentation(ctx context.Context) (res *openapi.DocumentationResult, body io.ReadCloser, err error) {
+func (o openapisrvc) Documentation(
+	ctx context.Context,
+) (res *openapi.DocumentationResult, body io.ReadCloser, err error) {
 	f, err := assets.EmbeddedFiles.Open("assets/static/docs.html")
 	if err != nil {
 		return nil, nil, openapi.MakeInvalidFilePath(err)
