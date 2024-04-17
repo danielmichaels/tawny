@@ -1,7 +1,6 @@
 name: goreleaser
 
 on:
-  pull_request:
   push:
     tags:
       - '*'
@@ -21,6 +20,8 @@ jobs:
         uses: actions/setup-go@master
         with:
           go-version: stable
+      - name: Auto generate files
+        run: go install goa.design/goa/v3/cmd/goa@v3 && goa gen github.com/danielmichaels/tawny/design
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:

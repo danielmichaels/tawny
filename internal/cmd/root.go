@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	assets "github.com/danielmichaels/tawny"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func Execute(ctx context.Context) int {
@@ -22,3 +20,8 @@ func Execute(ctx context.Context) int {
 
 	return 0
 }
+
+//func cmdLogger() *zerolog.Logger {
+//	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
+//	return &logger
+//}

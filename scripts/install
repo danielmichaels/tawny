@@ -1,0 +1,164 @@
+#!/bin/bash
+set -e -x -o pipefail
+
+export OWNER="danielmichaels"
+export REPO="tawny"
+export ARKADE=/usr/local/bin/arkade
+# When running as a startup script (cloud-init), the HOME variable is not always set.
+# As it is required for arkade to properly download tools,
+# set the variable to /usr/local so arkade will download binaries to /usr/local/.arkade
+if [ -z "${HOME}" ]; then
+  export HOME=/usr/local
+fi
+
+K3S_VERSION="v1.29.3+k3s1"
+DOCKER_VERSION="24.0"
+TAWNY_DOMAIN="${TAWNY_DOMAIN:-}"
+TAWNY_PORT="${TAWNY_PORT:-9090}"
+# Used in docker-compose
+LATEST_RELEASE="${VERSION:-latest}"
+export LATEST_RELEASE
+
+echo "Finding latest version from GitHub"
+VERSION=$(curl -sI https://github.com/$OWNER/$REPO/releases/latest | grep -i "location:" | awk -F"/" '{ printf "%s", $NF }' | tr -d '\r')
+echo "$VERSION"
+
+if [ ! "$VERSION" ]; then
+  echo "Failed while attempting to get latest version"
+  exit 1
+fi
+
+if [ ! "$TAWNY_DOMAIN" ]; then
+  echo "No Domain set; Caddy defaulting to port 80"
+fi
+
+SUDO=sudo
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=
+fi
+
+has_yum() {
+  [ -n "$(command -v yum)" ]
+}
+
+has_apt_get() {
+  [ -n "$(command -v apt-get)" ]
+}
+
+has_pacman() {
+  [ -n "$(command -v pacman)" ]
+}
+
+install_required_packages() {
+  if $(has_apt_get); then
+    # Debian bullseye is missing iptables. Added to required packages
+    # to get it working in raspberry pi. No such known issues in
+    # other distros. Hence, adding only to this block.
+    # reference: https://github.com/openfaas/faasd/pull/237
+    $SUDO apt-get update -y
+    $SUDO apt-get install -y curl jq iptables
+  elif $(has_yum); then
+    $SUDO yum check-update -y
+    $SUDO yum install -y curl jq
+  elif $(has_pacman); then
+    $SUDO pacman -Syy
+    $SUDO pacman -Sy curl jq
+  else
+    fatal "Could not find apt-get, yum, or pacman. Cannot install dependencies on this OS."
+    exit 1
+  fi
+}
+
+install_arkade() {
+  curl -sLS https://get.arkade.dev | $SUDO sh
+  arkade --help
+  add_arkade_to_bash
+}
+
+add_arkade_to_bash() {
+  echo "export PATH=$HOME/.arkade/bin:$PATH" >>.bashrc
+}
+
+install_k3s() {
+  echo "Installing k3s $K3S_VERSION"
+  curl -sfL https://get.k3s.io | \
+  K3S_KUBECONFIG_MODE="644" \
+  INSTALL_K3S_EXEC="--disable traefik" \
+  sh -
+  export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+  arkade install traefik2 --dashboard --wait
+  arkade install cert-manager --wait
+}
+
+is_docker_snap() {
+  # Detect if docker is installed via snap
+  if [ -x "$(command -v snap)" ]; then
+    if snap list | grep -q docker; then
+      echo "Docker is installed via snap."
+      echo "Please remove Docker with snap (snap remove docker) and execute this script."
+      echo "Docker in snap will result in odd behaviour from the application and cannot be used."
+      exit 1
+    fi
+  fi
+}
+
+install_docker() {
+  # exit early if docker is snap installed
+  is_docker_snap
+  # automated script
+  if ! [ -x "$(command -v docker)" ]; then
+    echo "Docker is not installed. Installing Docker."
+    curl https://releases.rancher.com/install-docker/${DOCKER_VERSION}.sh | sh
+    if [ -x "$(command -v docker)" ]; then
+      echo "Docker installed successfully."
+    else
+      echo "Docker installation failed with Rancher script. Trying with official script."
+      curl https://get.docker.com | sh -s -- --version ${DOCKER_VERSION}
+      if [ -x "$(command -v docker)" ]; then
+        echo "Docker installed successfully."
+      else
+        echo "Docker installation failed with official script."
+        echo "Maybe your OS is not supported?"
+        echo "Please visit https://docs.docker.com/engine/install/ and install Docker manually to continue."
+        exit 1
+      fi
+    fi
+  fi
+  enable_docker_ip_forwarding
+}
+
+non_root_docker() {
+  $SUDO usermod -aG docker "$USER"
+  newgrp docker
+}
+
+enable_docker_ip_forwarding() {
+  $SUDO /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
+  echo "net.ipv4.conf.all.forwarding=1" | $SUDO tee -a /etc/sysctl.conf
+}
+
+make_directories() {
+  $SUDO mkdir -p /var/tawny/{source,data}
+}
+
+install_tawny() {
+  $SUDO curl -sfL https://raw.githubusercontent.com/danielmichaels/tawny/main/docker-compose.yml \
+        -o /var/tawny/source/docker-compose.yml
+  $SUDO docker compose -f /var/tawny/source/docker-compose.yml up \
+        --pull always --remove-orphans --force-recreate --detach
+}
+
+printer() {
+  echo -e "\nCongratulations! Your Tawny instance is ready to use.\n"
+  echo "Please visit http://$(curl -4s https://ifconfig.io):9090 to get started."
+}
+
+install_required_packages
+install_arkade
+install_k3s
+install_docker
+make_directories
+install_tawny
+printer
+# must come last as it exits the script
+non_root_docker

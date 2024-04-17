@@ -1,0 +1,9 @@
+#cloud-config
+ssh_authorized_keys:
+## Note: Replace with your own public key
+  - ssh-rsa EXAMPLE
+
+package_update: true
+
+packages:
+ - git
