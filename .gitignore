@@ -33,3 +33,4 @@ assets/static/js/bundle.js
 *_templ.go
 
 dist/
+/localcert.json

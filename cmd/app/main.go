@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/danielmichaels/tawny/internal/cmd"
 	"os"
 	"os/signal"
+
+	"github.com/danielmichaels/tawny/internal/cmd"
 )
 
 func main() {
