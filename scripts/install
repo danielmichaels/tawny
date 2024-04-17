@@ -13,9 +13,9 @@ fi
 
 K3S_VERSION="v1.29.3+k3s1"
 DOCKER_VERSION="24.0"
-LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 TAWNY_DOMAIN="${TAWNY_DOMAIN:-}"
 TAWNY_PORT="${TAWNY_PORT:-9090}"
+# Used in docker-compose
 LATEST_RELEASE="${VERSION:-latest}"
 export LATEST_RELEASE
 
@@ -28,9 +28,6 @@ if [ ! "$VERSION" ]; then
   exit 1
 fi
 
-if [ ! "$LETSENCRYPT_EMAIL" ]; then
-  echo "No Let's Encrypt email set; Caddy will not be able to get a TLS cert for the Domain"
-fi
 if [ ! "$TAWNY_DOMAIN" ]; then
   echo "No Domain set; Caddy defaulting to port 80"
 fi
@@ -39,12 +36,6 @@ SUDO=sudo
 if [ "$(id -u)" -eq 0 ]; then
   SUDO=
 fi
-
-verify_system() {
-  if ! [ -d /run/systemd ]; then
-    fatal 'Can not find systemd to use as a process supervisor for faasd'
-  fi
-}
 
 has_yum() {
   [ -n "$(command -v yum)" ]
@@ -78,91 +69,14 @@ install_required_packages() {
   fi
 }
 
-is_ssh_running() {
-  # Detect OpenSSH server
-  SSH_DETECTED=false
-  if [ -x "$(command -v systemctl)" ]; then
-    if systemctl status sshd >/dev/null 2>&1; then
-      echo "OpenSSH server is installed."
-      SSH_DETECTED=true
-    fi
-    if systemctl status ssh >/dev/null 2>&1; then
-      echo "OpenSSH server is installed."
-      SSH_DETECTED=true
-    fi
-  elif [ -x "$(command -v service)" ]; then
-    if service sshd status >/dev/null 2>&1; then
-      echo "OpenSSH server is installed."
-      SSH_DETECTED=true
-    fi
-    if service ssh status >/dev/null 2>&1; then
-      echo "OpenSSH server is installed."
-      SSH_DETECTED=true
-    fi
-  fi
-  if [ "$SSH_DETECTED" = "false" ]; then
-    echo "###############################################################################"
-    echo "WARNING: Could not detect if OpenSSH server is installed and running - "
-    echo "this does not mean that it is not installed, just that we could not detect it."
-    echo "Please make sure it is set, otherwise we cannot connect to the host system."
-    echo "###############################################################################"
-  fi
-}
-
 install_arkade() {
   curl -sLS https://get.arkade.dev | $SUDO sh
   arkade --help
   add_arkade_to_bash
-  install_arkade_tools
 }
 
 add_arkade_to_bash() {
   echo "export PATH=$HOME/.arkade/bin:$PATH" >>.bashrc
-}
-
-install_arkade_tools() {
-  arkade get k9s
-}
-install_traefik2() {
-  arkade install traefik2 --dashboard --wait
-}
-install_cert_manager() {
-  arkade install cert-manager --wait
-}
-
-install_caddy() {
-    CADDY_VER=v2.7.6
-    arkade get --progress=false caddy -v ${CADDY_VER}
-
-    # /usr/bin/caddy is specified in the upstream service file.
-    $SUDO install -m 755 "$HOME"/.arkade/bin/caddy /usr/bin/caddy
-
-    $SUDO curl -fSLs https://raw.githubusercontent.com/caddyserver/dist/master/init/caddy.service --output /etc/systemd/system/caddy.service
-
-    $SUDO mkdir -p /etc/caddy
-    $SUDO mkdir -p /var/lib/caddy
-
-    if $(id caddy >/dev/null 2>&1); then
-      echo "User caddy already exists."
-    else
-      $SUDO useradd --system --home /var/lib/caddy --shell /bin/false caddy
-    fi
-
-    $SUDO tee /etc/caddy/Caddyfile >/dev/null <<EOF
-{
-  email "${LETSENCRYPT_EMAIL}"
-}
-
-${TAWNY_DOMAIN:-:80} {
-  reverse_proxy 127.0.0.1:${TAWNY_PORT}
-}
-EOF
-
-    $SUDO chown --recursive caddy:caddy /var/lib/caddy
-    $SUDO chown --recursive caddy:caddy /etc/caddy
-
-    $SUDO systemctl enable caddy
-    $SUDO systemctl start caddy
 }
 
 install_k3s() {
@@ -172,8 +86,8 @@ install_k3s() {
   INSTALL_K3S_EXEC="--disable traefik" \
   sh -
   export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
-  install_traefik2
-  install_cert_manager
+  arkade install traefik2 --dashboard --wait
+  arkade install cert-manager --wait
 }
 
 is_docker_snap() {
@@ -210,7 +124,7 @@ install_docker() {
       fi
     fi
   fi
-
+  enable_docker_ip_forwarding
 }
 
 non_root_docker() {
@@ -224,12 +138,14 @@ enable_docker_ip_forwarding() {
 }
 
 make_directories() {
-  $SUDO mkdir -p /var/tawny/{source,}
+  $SUDO mkdir -p /var/tawny/{source,data}
 }
 
 install_tawny() {
-  $SUDO curl -sfL https://raw.githubusercontent.com/danielmichaels/tawny/installer2/docker-compose.yml -o /var/tawny/source/docker-compose.yml
-  $SUDO docker compose -f /var/tawny/source/docker-compose.yml up --pull always --remove-orphans --force-recreate --detach
+  $SUDO curl -sfL https://raw.githubusercontent.com/danielmichaels/tawny/main/docker-compose.yml \
+        -o /var/tawny/source/docker-compose.yml
+  $SUDO docker compose -f /var/tawny/source/docker-compose.yml up \
+        --pull always --remove-orphans --force-recreate --detach
 }
 
 printer() {
@@ -237,15 +153,11 @@ printer() {
   echo "Please visit http://$(curl -4s https://ifconfig.io):9090 to get started."
 }
 
-verify_system
 install_required_packages
 install_arkade
-is_ssh_running
 install_k3s
 install_docker
-enable_docker_ip_forwarding
 make_directories
-install_caddy
 install_tawny
 printer
 # must come last as it exits the script
