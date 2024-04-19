@@ -90,6 +90,11 @@ func commonCors() {
 	}
 }
 
+func CreatedAndUpdateAtResult() {
+	Attribute("created_at", String, "Created at", func() {})
+	Attribute("updated_at", String, "Updated at", func() {})
+}
+
 // genURL joins two url strings together as a single valid URL path
 func genURL(base, endpoint string) string {
 	return fmt.Sprintf("%s/%s", base, endpoint)
@@ -105,7 +110,7 @@ var NotFound = Type("not-found", func() {
 		Example("bad request")
 	})
 	Attribute("detail", String, "Error details", func() {
-		Example("Failed to determine machine information. Cannot continue.")
+		Example("Resource not found")
 	})
 	Required("message", "detail", "name")
 
@@ -117,7 +122,7 @@ var BadRequest = Type("bad-request", func() {
 		Example("bad request")
 	})
 	Attribute("detail", String, "Error details", func() {
-		Example("Failed to determine machine information. Cannot continue.")
+		Example("Failed to validate information. Cannot continue.")
 	})
 	Required("message", "detail", "name")
 })
