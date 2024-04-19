@@ -19,7 +19,7 @@ type dbConf struct {
 	Password string `env:"POSTGRES_PASSWORD,default=dbuser"`
 	// PG SSL MODES: allow, disable
 	SSLMode  string `env:"POSTGRES_SSL_MODE,default=disable"`
-	Port     int    `env:"POSTGRES_PORT,default=5433"`
+	Port     int    `env:"POSTGRES_PORT,default=5432"`
 	MaxConns int    `env:"POSTGRES_MAX_CONNS,default=16"`
 	//DatabaseConnectionContext time.Duration `env:"DATABASE_CONNECTION_CONTEXT,default=15s"`
 }
