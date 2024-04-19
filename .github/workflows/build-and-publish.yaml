@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@master
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: "${{ runner.os }}-buildx-${{ github.sha }}"
           restore-keys: |
             ${{ runner.os }}-buildx-
       - name: Build and export to Docker
@@ -57,7 +57,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.TAG }}
 
   docker-push:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: startsWith(github.event.ref, 'refs/tags/v')
     needs: docker-build
     runs-on: ubuntu-latest
     steps:
@@ -80,7 +80,7 @@ jobs:
         uses: actions/cache@master
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: "${{ runner.os }}-buildx-${{ github.sha }}"
           restore-keys: |
             ${{ runner.os }}-buildx-
       - name: Push to Registry
