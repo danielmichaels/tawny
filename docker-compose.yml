@@ -1,18 +1,79 @@
 services:
-  tawny:
+  tawny-api:
     image: "docker.io/danielmichaels/tawny:${LATEST_RELEASE:-latest}"
-    container_name: tawny_server
+    container_name: tawny_api_server
+    command: "--api"
     restart: always
+    environment:
+      POSTGRES_HOST: tawny-db
+    env_file:
+      - ./${ENV:-.env}
     ports:
-      - "${TAWNY_PORT:-9090}:9090"
+      - "${TAWNY_API_PORT:-9090}:9090"
     expose:
-      - "${TAWNY_PORT:-9090}"
+      - "${TAWNY_API_PORT:-9090}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - tawny
     healthcheck:
-      test: curl --fail http://localhost:${TAWNY_PORT}/v1/healthz || exit 1
+      test: curl --fail http://localhost/v1/healthz || exit 1
       interval: 5s
       retries: 10
       timeout: 2s
+    depends_on:
+      - tawny-db
     volumes:
       - /etc/rancher/k3s/k3s.yaml:/app/kubeconfig
+  tawny-web:
+    image: "docker.io/danielmichaels/tawny:${LATEST_RELEASE:-latest}"
+    container_name: tawny_web_server
+    command: "--web"
+    restart: always
+    environment:
+      POSTGRES_HOST: tawny-db
+    env_file:
+      - ./${ENV:-.env}
+    ports:
+      - "${TAWNY_WEB_PORT:-9091}:9091"
+    expose:
+      - "${TAWNY_WEB_PORT:-9091}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - tawny
+    healthcheck:
+      test: curl --fail http://localhost:${TAWNY_WEB_PORT}/healthz || exit 1
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    depends_on:
+      - tawny-db
+    volumes:
+      - /etc/rancher/k3s/k3s.yaml:/app/kubeconfig
+  tawny-db:
+    image: postgres:15-alpine
+    container_name: tawny-db
+    restart: always
+    env_file:
+      - ./${ENV:-.env}
+    ports:
+      - 5432:5432
+    networks:
+      - tawny
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - tawny-db:/var/lib/postgresql/data:Z
+
+networks:
+  tawny:
+volumes:
+  tawny-db:

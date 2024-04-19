@@ -3,10 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/danielmichaels/tawny/internal/config"
+	"github.com/danielmichaels/tawny/internal/store"
+	"github.com/danielmichaels/tawny/internal/webserver"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -26,17 +30,33 @@ import (
 func ServeCmd(ctx context.Context) *cobra.Command {
 	var isConsole bool
 	var debugF bool
+	var apiServerOnly bool
+	var webServerOnly bool
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Args:  cobra.ExactArgs(0),
 		Short: "Runs the servers",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.AppConfig()
 			var (
 				logger *svclogger.Logger
 			)
 			{
-				logger = svclogger.New("api", debugF, isConsole)
+				logger = svclogger.New("tawny", debugF, isConsole)
 			}
+			logger.Info().Int("GOMAXPROCS", runtime.GOMAXPROCS(0)).Send()
+
+			// Initialize stores
+			db, err := store.NewDatabasePool(ctx, cfg)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("failed to connect to database")
+			}
+			defer db.Close()
+			err = db.Ping(ctx)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("failed to ping database at startup")
+			}
+			dbx := store.New(db)
 
 			// Initialize the services.
 			var (
@@ -74,21 +94,40 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			var wg sync.WaitGroup
 			ctx, cancel := context.WithCancel(ctx)
 
-			addr := "http://0.0.0.0:9090"
-			u, err := url.Parse(addr)
-			if err != nil {
-				logger.Fatal().Msgf("invalid URL %#v: %s\n", addr, err)
+			if apiServerOnly {
+				port := cfg.Server.APIPort
+				addr := fmt.Sprintf("http://0.0.0.0:%d", port)
+				u, err := url.Parse(addr)
+				if err != nil {
+					logger.Fatal().Msgf("invalid URL %#v: %s\n", addr, err)
+				}
+				handleHTTPServer(
+					ctx,
+					u,
+					monitoringEndpoints,
+					openapiEndpoints,
+					&wg,
+					errc,
+					logger,
+					debugF,
+				)
 			}
-			handleHTTPServer(
-				ctx,
-				u,
-				monitoringEndpoints,
-				openapiEndpoints,
-				&wg,
-				errc,
-				logger,
-				debugF,
-			)
+			if webServerOnly {
+				app := &webserver.Application{
+					Config: cfg,
+					Logger: logger,
+					DB:     dbx,
+				}
+				go func() {
+					err := app.Serve(ctx)
+					if err != nil {
+						logger.Error().Err(err).Msg("error in webserver application")
+					}
+				}()
+			}
+			if !webServerOnly && !apiServerOnly {
+				logger.Fatal().Msgf("must run either API or Web server. nothing selected")
+			}
 			logger.Info().Msgf("exiting (%v)", <-errc)
 
 			// Send cancellation signal to the goroutines.
@@ -98,10 +137,11 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			logger.Info().Msg("exited")
 			return nil
 		},
-		//RunE: serve,
 	}
 	cmd.Flags().BoolVar(&debugF, "debug", false, "Log request and response bodies")
 	cmd.Flags().BoolVar(&isConsole, "console", false, "Use zerolog ConsoleWriter")
+	cmd.Flags().BoolVar(&apiServerOnly, "api", false, "Run the API server")
+	cmd.Flags().BoolVar(&webServerOnly, "web", false, "Run the Web server")
 	return cmd
 }
 

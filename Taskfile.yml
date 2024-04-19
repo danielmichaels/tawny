@@ -5,8 +5,8 @@ dotenv:
 
 vars:
   DESIGN: github.com/danielmichaels/tawny/design
-  DATABASE_TYPE: "sqlite"
-  DATABASE_URL: "./data/data.sql"
+  DATABASE_TYPE: "postgres"
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL_MODE}
 
   MP_NAME: tawny
   MP_IP: $(multipass info {{.MP_NAME}} --format json| jq -r '.info.{{.MP_NAME}}.ipv4[0]')
@@ -20,7 +20,17 @@ tasks:
   dev:
     desc: Run server
     cmds:
-      - air -- --console {{.CLI_ARGS}}
+      - air -- --console --api --web {{.CLI_ARGS}}
+
+  api:
+    desc: Run API server
+    cmds:
+      - air -- --console --api {{.CLI_ARGS}}
+
+  web:
+    desc: Run WEB server
+    cmds:
+      - air -- --console --web {{.CLI_ARGS}}
 
   k3s:up:
     desc: Create a local k3s server
@@ -28,7 +38,6 @@ tasks:
       - curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable traefik" sh -
       - arkade install traefik2 --dashboard --wait
       - arkade install cert-manager --wait
-
 
   tidy:
     desc: go mod tidy
@@ -74,6 +83,17 @@ tasks:
     cmds:
       - env | ag -i cgo
       - sqlc generate
+
+  db:local:up:
+    desc: Run a local database for development
+    cmds:
+      - docker compose up tawny-db -d
+      - docker compose logs -f
+
+  db:local:down:
+    desc: Stop the local database for development
+    cmds:
+      - docker compose down tawny-db {{.CLI_ARGS}}
 
   db:migration:up:
     desc: Run migrations (all of them)

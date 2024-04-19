@@ -21,7 +21,11 @@ jobs:
         with:
           go-version: stable
       - name: Auto generate files
-        run: go install goa.design/goa/v3/cmd/goa@v3 && goa gen github.com/danielmichaels/tawny/design
+        run: |
+          go install goa.design/goa/v3/cmd/goa@v3 && \
+          go install github.com/a-h/templ/cmd/templ@latest && \
+          goa gen github.com/danielmichaels/tawny/design && \
+          templ generate
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
