@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/config"
 	"github.com/danielmichaels/tawny/internal/store"
 	"github.com/danielmichaels/tawny/internal/webserver"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	identitysvr "github.com/danielmichaels/tawny/gen/http/identity/server"
 	monitoringsvr "github.com/danielmichaels/tawny/gen/http/monitoring/server"
 	openapisvr "github.com/danielmichaels/tawny/gen/http/openapi/server"
 	"github.com/danielmichaels/tawny/gen/monitoring"
@@ -62,10 +64,12 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			var (
 				monitoringSvc monitoring.Service
 				openapiSvc    openapi.Service
+				identitySvc   identity.Service
 			)
 			{
 				monitoringSvc = tawny.NewMonitoring(logger)
 				openapiSvc = tawny.NewOpenapi(logger)
+				identitySvc = tawny.NewIdentity(logger, dbx)
 			}
 
 			// Wrap the services in endpoints that can be invoked from other services
@@ -73,10 +77,12 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			var (
 				monitoringEndpoints *monitoring.Endpoints
 				openapiEndpoints    *openapi.Endpoints
+				identityEndpoints   *identity.Endpoints
 			)
 			{
 				monitoringEndpoints = monitoring.NewEndpoints(monitoringSvc)
 				openapiEndpoints = openapi.NewEndpoints(openapiSvc)
+				identityEndpoints = identity.NewEndpoints(identitySvc)
 			}
 
 			// Create channel used by both the signal handler and server goroutines
@@ -106,6 +112,7 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 					u,
 					monitoringEndpoints,
 					openapiEndpoints,
+					identityEndpoints,
 					&wg,
 					errc,
 					logger,
@@ -152,6 +159,7 @@ func handleHTTPServer(
 	u *url.URL,
 	monitoringEndpoints *monitoring.Endpoints,
 	openapiEndpoints *openapi.Endpoints,
+	identityEndpoints *identity.Endpoints,
 	wg *sync.WaitGroup,
 	errc chan error,
 	logger *svclogger.Logger,
@@ -189,15 +197,18 @@ func handleHTTPServer(
 	var (
 		monitoringServer *monitoringsvr.Server
 		openapiServer    *openapisvr.Server
+		identityServer   *identitysvr.Server
 	)
 	{
 		eh := errorHandler(logger)
 		monitoringServer = monitoringsvr.New(monitoringEndpoints, mux, dec, enc, eh, nil)
 		openapiServer = openapisvr.New(openapiEndpoints, mux, dec, enc, eh, nil)
+		identityServer = identitysvr.New(identityEndpoints, mux, dec, enc, eh, nil)
 		if debug {
 			servers := goahttp.Servers{
 				monitoringServer,
 				openapiServer,
+				identityServer,
 			}
 			servers.Use(httpmdlwr.Debug(mux, os.Stdout))
 		}
@@ -205,6 +216,7 @@ func handleHTTPServer(
 	// Configure the mux.
 	monitoringsvr.Mount(mux, monitoringServer)
 	openapisvr.Mount(mux, openapiServer)
+	identitysvr.Mount(mux, identityServer)
 
 	// Wrap the multiplexer with additional middlewares. Middlewares mounted
 	// here apply to all the service endpoints.
@@ -221,6 +233,9 @@ func handleHTTPServer(
 		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 	for _, m := range openapiServer.Mounts {
+		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+	}
+	for _, m := range identityServer.Mounts {
 		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 

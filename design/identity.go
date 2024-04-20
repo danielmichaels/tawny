@@ -100,6 +100,7 @@ var UserIn = Type("User", func() {
 	Attribute("username", String, "ID of the user", func() { Example("my-username") })
 	Attribute("password", String, "ID of the user", func() { Example("fakePassword") })
 	Attribute("email", String, "ID of the user", func() { Example("email@example.com") })
+	Required("username", "password", "email")
 })
 var UserResult = ResultType("application/vnd.tawny.user", func() {
 	TypeName("UserResult")
@@ -133,6 +134,7 @@ var TeamIn = Type("Team", func() {
 	Description("Team object")
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
 	Attribute("email", String, "Email", func() { Example("my-team@teamsters.com") })
+	Required("name", "email")
 })
 var TeamResult = ResultType("application/vnd.tawny.team", func() {
 	TypeName("Team")
