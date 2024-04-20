@@ -8,9 +8,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Examples struct {
-	Text      string             `json:"text"`
-	CreatedBy string             `json:"created_by"`
+type Teams struct {
+	ID        int32              `json:"id"`
+	TeamID    string             `json:"team_id"`
+	Name      string             `json:"name"`
+	Email     string             `json:"email"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserTeamMapping struct {
+	UserID int32 `json:"user_id"`
+	TeamID int32 `json:"team_id"`
+}
+
+type Users struct {
+	ID        int32              `json:"id"`
+	UserID    string             `json:"user_id"`
+	Username  string             `json:"username"`
+	Email     string             `json:"email"`
+	Verified  bool               `json:"verified"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
