@@ -11,7 +11,7 @@ var _ = Service("identity", func() {
 	commonErrors()
 	// Users
 	Method("createUser", func() {
-		Description("Create a new user")
+		Description("Create a new user. This will also generate a new team for that user.")
 		Payload(func() {
 			Attribute("user", UserIn)
 			APIKey(
@@ -31,9 +31,9 @@ var _ = Service("identity", func() {
 		})
 	})
 	Method("retrieveUser", func() {
-		Description("Retrieve a single User")
+		Description("Retrieve a single user. Can only retrieve users from an associated team.")
 		Payload(func() {
-			Field(1, "id", String, "ID of the user", func() {
+			Attribute("id", String, "ID of the user", func() {
 				Pattern(userRx)
 				Example("user_123456789012")
 			})
@@ -48,6 +48,25 @@ var _ = Service("identity", func() {
 		Result(UserResult)
 		HTTP(func() {
 			GET("/users/{id}")
+			Response(StatusOK)
+			Header(apiKeyHeader)
+			commonResponses()
+		})
+	})
+	Method("listUsers", func() {
+		Description("Retrieve all users that this user can see from associated teams.")
+		Payload(func() {
+			APIKey(
+				apiKeyScheme,
+				apiKeyName,
+				String,
+				func() { Description("API key"); Example("key_000000000000") },
+			)
+			Required(apiKeyName)
+		})
+		Result(UsersResult)
+		HTTP(func() {
+			GET("/users")
 			Response(StatusOK)
 			Header(apiKeyHeader)
 			commonResponses()
@@ -70,29 +89,6 @@ var _ = Service("identity", func() {
 		HTTP(func() {
 			POST("/teams")
 			Response(StatusCreated)
-			Header(apiKeyHeader)
-			commonResponses()
-		})
-	})
-	Method("retrieveTeam", func() {
-		Description("Retrieve a single Team")
-		Payload(func() {
-			Field(1, "id", String, "ID of the team", func() {
-				Pattern(teamRx)
-				Example("team_123456789012")
-			})
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_000000000000") },
-			)
-			Required("id", apiKeyName)
-		})
-		Result(TeamResult)
-		HTTP(func() {
-			GET("/teams/{id}")
-			Response(StatusOK)
 			Header(apiKeyHeader)
 			commonResponses()
 		})
