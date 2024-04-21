@@ -45,15 +45,28 @@ SELECT user_id,
 FROM users
 WHERE user_id = $1;
 
--- List all users associated to authorized user
--- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+
+-- Count all users the authorized user can see; used in pagination
+-- name: CountUsers :one
+SELECT count(*) OVER()
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
                       FROM user_team_mapping utm_inner
                                JOIN users u_inner ON utm_inner.user_id = u_inner.id
                       WHERE u_inner.user_id = $1);
+
+-- List all users associated to authorized user and get total count
+-- name: ListUsers :many
+SELECT count(*) OVER(), u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+FROM users u
+         JOIN user_team_mapping utm ON u.id = utm.user_id
+WHERE utm.team_id IN (SELECT utm_inner.team_id
+                      FROM user_team_mapping utm_inner
+                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
+                      WHERE u_inner.user_id = $1)
+ORDER BY u.created_at DESC
+LIMIT $2 OFFSET $3;
 
 -- Create a team
 -- name: CreateTeam :one

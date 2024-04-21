@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT count(*) OVER()
+FROM users u
+         JOIN user_team_mapping utm ON u.id = utm.user_id
+WHERE utm.team_id IN (SELECT utm_inner.team_id
+                      FROM user_team_mapping utm_inner
+                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
+                      WHERE u_inner.user_id = $1)
+`
+
+func (q *Queries) CountUsers(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO teams (name, email)
 VALUES ($1, $2)
@@ -133,16 +150,25 @@ func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+SELECT count(*) OVER(), u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
                       FROM user_team_mapping utm_inner
                                JOIN users u_inner ON utm_inner.user_id = u_inner.id
                       WHERE u_inner.user_id = $1)
+ORDER BY u.created_at DESC
+LIMIT $2 OFFSET $3
 `
 
+type ListUsersParams struct {
+	UserID string `json:"user_id"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
 type ListUsersRow struct {
+	Count     int64              `json:"count"`
 	ID        int32              `json:"id"`
 	Username  string             `json:"username"`
 	Email     string             `json:"email"`
@@ -152,9 +178,9 @@ type ListUsersRow struct {
 	Role      UserRole           `json:"role"`
 }
 
-// List all users associated to authorized user
-func (q *Queries) ListUsers(ctx context.Context, userID string) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, userID)
+// List all users associated to authorized user and get total count
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
+	rows, err := q.db.Query(ctx, listUsers, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +189,7 @@ func (q *Queries) ListUsers(ctx context.Context, userID string) ([]ListUsersRow,
 	for rows.Next() {
 		var i ListUsersRow
 		if err := rows.Scan(
+			&i.Count,
 			&i.ID,
 			&i.Username,
 			&i.Email,

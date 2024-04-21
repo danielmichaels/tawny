@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/danielmichaels/tawny/design"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
 	"github.com/danielmichaels/tawny/internal/logger"
@@ -66,8 +67,12 @@ func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUse
 // Retrieve all users that this user can see from associated teams.
 func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPayload) (res *identity.Users, err error) {
 	ut := auth.CtxAuthInfo(ctx)
-	res = &identity.Users{}
-	u, err := s.db.ListUsers(ctx, ut.User)
+	ps, pn := design.PaginationQueryParams(p.PageSize, p.PageNumber)
+	u, err := s.db.ListUsers(ctx, store.ListUsersParams{
+		UserID: ut.User,
+		Limit:  ps,
+		Offset: pn,
+	})
 	if err != nil {
 		return nil, &identity.NotFound{
 			Name:    "not found",
@@ -75,7 +80,11 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 			Detail:  "resource not found",
 		}
 	}
-	users := &identity.Users{}
+	count, err := s.db.CountUsers(ctx, ut.User)
+	if err != nil {
+		count = 0
+	}
+	var users = &identity.Users{}
 	for _, user := range u {
 		users.Users = append(users.Users, &identity.UserResult{
 			Username:  user.Username,
@@ -86,8 +95,7 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 			UpdatedAt: ptr.Ptr(user.UpdatedAt.Time.String()),
 		})
 	}
-	users.Metadata = CalculateIdentityMetadata(len(users.Users), p.PageNumber, p.PageSize)
-
+	users.Metadata = CalculateIdentityMetadata(int(count), p.PageNumber, p.PageSize)
 	return users, nil
 }
 

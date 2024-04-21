@@ -94,6 +94,10 @@ func createdAndUpdateAtResult() {
 	Attribute("updated_at", String, "Updated at", func() { Example("2024-04-21 11:43:02 +0000") })
 }
 
+// PaginationQueryParams returns the current_page and page_size values
+func PaginationQueryParams(page, pageSize int) (int32, int32) {
+	return int32(page), int32((pageSize - 1) * page)
+}
 func paginationParams() {
 	Param("page_size", Int)
 	Param("page_number", Int)
