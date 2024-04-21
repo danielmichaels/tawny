@@ -48,8 +48,8 @@ WITH new_team AS (
         VALUES ($1, $2)
         RETURNING id,team_id),
      new_user AS (
-         INSERT INTO users (username, email, verified)
-             VALUES ($1, $2, false)
+         INSERT INTO users (username, email, password, verified)
+             VALUES ($1, $2, $3, false)
              RETURNING id,user_id),
      new_user_team as (
          INSERT INTO user_team_mapping (user_id, team_id)
@@ -63,8 +63,9 @@ FROM new_user,
 `
 
 type CreateUserWithNewTeamParams struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type CreateUserWithNewTeamRow struct {
@@ -74,10 +75,26 @@ type CreateUserWithNewTeamRow struct {
 
 // Create a new user and a team for them
 func (q *Queries) CreateUserWithNewTeam(ctx context.Context, arg CreateUserWithNewTeamParams) (CreateUserWithNewTeamRow, error) {
-	row := q.db.QueryRow(ctx, createUserWithNewTeam, arg.Name, arg.Email)
+	row := q.db.QueryRow(ctx, createUserWithNewTeam, arg.Name, arg.Email, arg.Password)
 	var i CreateUserWithNewTeamRow
 	err := row.Scan(&i.UserID, &i.TeamID)
 	return i, err
+}
+
+const doesAdminExist = `-- name: DoesAdminExist :one
+SELECT EXISTS (SELECT 1
+               FROM users u
+                        JOIN user_team_mapping utm ON u.id = utm.user_id
+               WHERE u.username = 'admin'
+                 AND utm.role = 'admin') AS admin_exists
+`
+
+// Create admin user (for initial setup only)
+func (q *Queries) DoesAdminExist(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, doesAdminExist)
+	var admin_exists bool
+	err := row.Scan(&admin_exists)
+	return admin_exists, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
@@ -155,4 +172,85 @@ func (q *Queries) ListUsers(ctx context.Context, userID int32) ([]ListUsersRow, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const retrieveUserWithTeamInfoByAPIKEY = `-- name: RetrieveUserWithTeamInfoByAPIKEY :one
+SELECT u.id         AS user_pk,
+       u.user_id,
+       u.username,
+       u.email      AS user_email,
+       u.verified   AS user_verified,
+       u.created_at AS user_created_at,
+       u.updated_at AS user_updated_at,
+       t.id         AS team_pk,
+       t.team_id    AS team_id,
+       t.name       AS team_name,
+       t.email      AS team_email,
+       t.created_at AS team_created_at,
+       t.updated_at AS team_updated_at
+FROM users u
+         JOIN
+     user_team_mapping ut ON u.id = ut.user_id
+         JOIN
+     teams t ON ut.team_id = t.id
+WHERE u.api_key = $1
+`
+
+type RetrieveUserWithTeamInfoByAPIKEYRow struct {
+	UserPk        int32              `json:"user_pk"`
+	UserID        string             `json:"user_id"`
+	Username      string             `json:"username"`
+	UserEmail     string             `json:"user_email"`
+	UserVerified  bool               `json:"user_verified"`
+	UserCreatedAt pgtype.Timestamptz `json:"user_created_at"`
+	UserUpdatedAt pgtype.Timestamptz `json:"user_updated_at"`
+	TeamPk        int32              `json:"team_pk"`
+	TeamID        string             `json:"team_id"`
+	TeamName      string             `json:"team_name"`
+	TeamEmail     string             `json:"team_email"`
+	TeamCreatedAt pgtype.Timestamptz `json:"team_created_at"`
+	TeamUpdatedAt pgtype.Timestamptz `json:"team_updated_at"`
+}
+
+// Retrieve user with team info (used in API-KEY auth)
+func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, apiKey string) (RetrieveUserWithTeamInfoByAPIKEYRow, error) {
+	row := q.db.QueryRow(ctx, retrieveUserWithTeamInfoByAPIKEY, apiKey)
+	var i RetrieveUserWithTeamInfoByAPIKEYRow
+	err := row.Scan(
+		&i.UserPk,
+		&i.UserID,
+		&i.Username,
+		&i.UserEmail,
+		&i.UserVerified,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.TeamPk,
+		&i.TeamID,
+		&i.TeamName,
+		&i.TeamEmail,
+		&i.TeamCreatedAt,
+		&i.TeamUpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :exec
+UPDATE user_team_mapping
+SET role = $1
+WHERE user_id = (
+    SELECT id
+    FROM users u
+    WHERE u.user_id = $2
+)
+`
+
+type UpdateUserRoleParams struct {
+	Role   UserRole `json:"role"`
+	UserID string   `json:"user_id"`
+}
+
+// Update a user role
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) error {
+	_, err := q.db.Exec(ctx, updateUserRole, arg.Role, arg.UserID)
+	return err
 }
