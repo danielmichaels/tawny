@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"github.com/danielmichaels/tawny/gen/identity"
+	"github.com/danielmichaels/tawny/internal/auth"
 	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/danielmichaels/tawny/internal/store"
 	"goa.design/goa/v3/security"
@@ -24,21 +24,13 @@ func NewIdentity(logger *logger.Logger, db *store.Queries) identity.Service {
 // APIKeyAuth implements the authorization logic for service "identity" for the
 // "api_key" security scheme.
 func (s *identitysrvc) APIKeyAuth(ctx context.Context, key string, scheme *security.APIKeyScheme) (context.Context, error) {
-	//
-	// TBD: add authorization logic.
-	//
-	// In case of authorization failure this function should return
-	// one of the generated error structs, e.g.:
-	//
-	//    return ctx, myservice.MakeUnauthorizedError("invalid token")
-	//
-	// Alternatively this function may return an instance of
-	// goa.ServiceError with a Name field value that matches one of
-	// the design error names, e.g:
-	//
-	//    return ctx, goa.PermanentError("unauthorized", "invalid token")
-	//
-	return ctx, fmt.Errorf("not implemented")
+	ak := auth.NewApiKey()
+	ctx, err := ak.Validate(ctx, key, scheme, s.db)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("token invalid")
+		return ctx, &identity.Unauthorized{Message: "token invalid"}
+	}
+	return ctx, nil
 }
 
 // Create a new user. This will also generate a new team for that user.
