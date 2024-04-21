@@ -48,7 +48,7 @@ WHERE user_id = $1;
 
 -- Count all users the authorized user can see; used in pagination
 -- name: CountUsers :one
-SELECT count(*) OVER()
+SELECT count(*) OVER ()
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
@@ -58,7 +58,7 @@ WHERE utm.team_id IN (SELECT utm_inner.team_id
 
 -- List all users associated to authorized user and get total count
 -- name: ListUsers :many
-SELECT count(*) OVER(), u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
@@ -68,11 +68,11 @@ WHERE utm.team_id IN (SELECT utm_inner.team_id
 ORDER BY u.created_at DESC
 LIMIT $2 OFFSET $3;
 
--- Create a team
+-- Create a team; leverages 'create_team' function which when supplied
+-- name, email and user_id will either create a team or error on permissions
 -- name: CreateTeam :one
-INSERT INTO teams (name, email)
-VALUES ($1, $2)
-RETURNING team_id, name, email, updated_at;
+SELECT *
+FROM create_team($1, $2, $3);
 
 -- Retrieve user with team info (used in API-KEY auth)
 -- name: RetrieveUserWithTeamInfoByAPIKEY :one

@@ -57,11 +57,53 @@ CREATE TABLE teams
 -- User-Team Mapping Table
 CREATE TABLE user_team_mapping
 (
-    role user_role NOT NULL DEFAULT 'maintainer',
+    role    user_role NOT NULL DEFAULT 'maintainer',
     user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
     team_id INTEGER REFERENCES teams (id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, team_id)
 );
+-- CreateTeam function; ensure only 'admin' can create teams
+CREATE OR REPLACE FUNCTION create_team(
+    team_name TEXT,
+    team_email TEXT,
+    current_user_id TEXT
+)
+    RETURNS TABLE (
+                      team_id TEXT,
+                      name TEXT,
+                      email TEXT,
+                      updated_at TIMESTAMP
+                  )
+AS
+$$
+DECLARE
+    new_team_id TEXT;
+    new_name TEXT;
+    new_email TEXT;
+    new_updated_at TIMESTAMP;
+BEGIN
+    -- Check if the current user has the 'admin' role
+    IF EXISTS (
+        SELECT 1
+        FROM user_team_mapping utm
+                 JOIN users u ON utm.user_id = u.id
+        WHERE u.user_id = current_user_id
+          AND utm.role = 'admin'
+    ) THEN
+        -- Insert the new team
+        INSERT INTO teams (name, email)
+        VALUES (team_name, team_email)
+        RETURNING teams.team_id, teams.name, teams.email, teams.updated_at
+            INTO new_team_id, new_name, new_email, new_updated_at;
+
+        -- Return the inserted team
+        RETURN QUERY SELECT new_team_id, new_name, new_email, new_updated_at;
+    ELSE
+        RAISE EXCEPTION 'Only admins can create teams';
+    END IF;
+END;
+$$
+    LANGUAGE plpgsql VOLATILE;;
 -- Triggers
 CREATE TRIGGER trigger_updated_at_users
     BEFORE UPDATE
@@ -81,5 +123,6 @@ DROP INDEX IF EXISTS idx_users_api_key;
 DROP TABLE IF EXISTS user_team_mapping;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS teams;
+DROP FUNCTION create_team(team_name TEXT, team_email TEXT, current_user_id TEXT);
 DROP TYPE IF EXISTS user_role;
 -- +goose StatementEnd

@@ -97,6 +97,14 @@ var _ = Service("identity", func() {
 	})
 })
 
+var PaginationMetadata = Type("PaginationMetadata", func() {
+	Attribute("total", Int32, func() { Example(25) })
+	Attribute("current_page", Int32, func() { Example(1) })
+	Attribute("first_page", Int32, func() { Example(1) })
+	Attribute("last_page", Int32, func() { Example(10) })
+	Attribute("page_size", Int32, func() { Example(20) })
+	Required("total", "page_size", "first_page", "current_page", "last_page")
+})
 var UserIn = Type("User", func() {
 	Description("User object")
 	Attribute("username", String, "ID of the user", func() { Example("my-username") })
@@ -134,14 +142,6 @@ var UsersResult = ResultType("application/vnd.tawny.users", func() {
 		Required("users", "metadata")
 	})
 })
-var PaginationMetadata = Type("PaginationMetadata", func() {
-	Attribute("total", Int32, func() { Example(25) })
-	Attribute("current_page", Int32, func() { Example(1) })
-	Attribute("first_page", Int32, func() { Example(1) })
-	Attribute("last_page", Int32, func() { Example(10) })
-	Attribute("page_size", Int32, func() { Example(20) })
-	Required("total", "page_size", "first_page", "current_page", "last_page")
-})
 var TeamIn = Type("Team", func() {
 	Description("Team object")
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
@@ -154,6 +154,7 @@ var TeamResult = ResultType("application/vnd.tawny.team", func() {
 	Attribute("team_id", String, "Team ID", func() { Example("team_123456789012") })
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
 	Attribute("email", String, "Email", func() { Example("my-team@teamsters.com") })
+	createdAndUpdateAtResult()
 	Required("team_id", "name", "email")
 
 	View(viewDefault, func() {

@@ -2,14 +2,18 @@ package api
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/danielmichaels/tawny/design"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
 	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/danielmichaels/tawny/internal/ptr"
 	"github.com/danielmichaels/tawny/internal/store"
+	"github.com/jackc/pgx/v5/pgconn"
 	"goa.design/goa/v3/security"
 	"math"
+	"strings"
 )
 
 // identity service example implementation.
@@ -101,11 +105,88 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 
 // Create a new team
 func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPayload) (res *identity.Team, err error) {
-	res = &identity.Team{}
-	s.logger.Print("identity.createTeam")
-	return
+	ut := auth.CtxAuthInfo(ctx)
+	t, err := s.db.CreateTeam(ctx, store.CreateTeamParams{
+		TeamName:      p.Team.Name,
+		TeamEmail:     p.Team.Email,
+		CurrentUserID: ut.User,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		switch {
+		case errors.As(err, &pgErr) && pgErr.Code == "P0001":
+			return nil, &identity.Unauthorized{Message: "user does not have permission to create team"}
+		case errors.As(err, &pgErr) && pgErr.Code == "23505":
+			s.logger.Error().Err(err).Msg("error creating team")
+			return nil, &identity.BadRequest{
+				Name:    "bad request",
+				Message: "team name or email already exists",
+			}
+		case errors.As(err, &pgErr):
+			s.logger.Error().Err(err).Interface("pgError", pgErr).Msg("error creating team")
+			return nil, &identity.ServerError{
+				Name:    "internal server error",
+				Message: "an unknown error occurred",
+			}
+		default:
+			s.logger.Error().Err(err).Msg("error creating team")
+			return nil, &identity.ServerError{
+				Name:    "internal server error",
+				Message: "an unknown error occurred",
+			}
+		}
+	}
+	team, err := parseTeam(t)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("error parsing team")
+		return nil, &identity.ServerError{
+			Name:    "internal server error",
+			Message: "an unknown error occurred",
+		}
+	}
+
+	return &identity.Team{
+		TeamID:    team.TeamID,
+		Name:      team.Name,
+		Email:     team.Email,
+		CreatedAt: team.CreatedAt,
+		UpdatedAt: team.UpdatedAt,
+	}, nil
 }
 
+// parseTeam is a workaround for the 'create_team' stored procedure which returns a string literal
+// instead of Go values. If it cannot be type cast to string it will error.
+func parseTeam(input interface{}) (*identity.Team, error) {
+	s, ok := input.(string)
+	if !ok {
+		return nil, fmt.Errorf("unable to parse team")
+	}
+	// Remove parenthesis
+	s = strings.TrimLeft(s, "(")
+	s = strings.TrimRight(s, ")")
+
+	// Split by comma
+	parts := strings.Split(s, ",")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("invalid format")
+	}
+
+	// Remove quotes
+	for i := range parts {
+		parts[i] = strings.Trim(parts[i], "\"")
+	}
+
+	// Create Team and assign values
+	t := &identity.Team{
+		TeamID:    parts[0],
+		Name:      parts[1],
+		Email:     parts[2],
+		CreatedAt: &parts[3], // or use a function to parse into datetime if necessary
+		UpdatedAt: nil,       // assuming that updated_at is not provided in the original string
+	}
+
+	return t, nil
+}
 func CalculateIdentityMetadata(totalRecords, page, pageSize int) *identity.PaginationMetadata {
 	if totalRecords == 0 {
 		return &identity.PaginationMetadata{}

@@ -12,7 +12,7 @@ import (
 )
 
 const countUsers = `-- name: CountUsers :one
-SELECT count(*) OVER()
+SELECT count(*) OVER ()
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
@@ -21,6 +21,7 @@ WHERE utm.team_id IN (SELECT utm_inner.team_id
                       WHERE u_inner.user_id = $1)
 `
 
+// Count all users the authorized user can see; used in pagination
 func (q *Queries) CountUsers(ctx context.Context, userID string) (int64, error) {
 	row := q.db.QueryRow(ctx, countUsers, userID)
 	var count int64
@@ -29,34 +30,23 @@ func (q *Queries) CountUsers(ctx context.Context, userID string) (int64, error) 
 }
 
 const createTeam = `-- name: CreateTeam :one
-INSERT INTO teams (name, email)
-VALUES ($1, $2)
-RETURNING team_id, name, email, updated_at
+SELECT create_team
+FROM create_team($1, $2, $3)
 `
 
 type CreateTeamParams struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	TeamName      string `json:"team_name"`
+	TeamEmail     string `json:"team_email"`
+	CurrentUserID string `json:"current_user_id"`
 }
 
-type CreateTeamRow struct {
-	TeamID    string             `json:"team_id"`
-	Name      string             `json:"name"`
-	Email     string             `json:"email"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-// Create a team
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
-	row := q.db.QueryRow(ctx, createTeam, arg.Name, arg.Email)
-	var i CreateTeamRow
-	err := row.Scan(
-		&i.TeamID,
-		&i.Name,
-		&i.Email,
-		&i.UpdatedAt,
-	)
-	return i, err
+// Create a team; leverages 'create_team' function which when supplied
+// name, email and user_id will either create a team or error on permissions
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (interface{}, error) {
+	row := q.db.QueryRow(ctx, createTeam, arg.TeamName, arg.TeamEmail, arg.CurrentUserID)
+	var create_team interface{}
+	err := row.Scan(&create_team)
+	return create_team, err
 }
 
 const createUserWithNewTeam = `-- name: CreateUserWithNewTeam :one
@@ -150,7 +140,7 @@ func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT count(*) OVER(), u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
@@ -168,7 +158,6 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	Count     int64              `json:"count"`
 	ID        int32              `json:"id"`
 	Username  string             `json:"username"`
 	Email     string             `json:"email"`
@@ -189,7 +178,6 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	for rows.Next() {
 		var i ListUsersRow
 		if err := rows.Scan(
-			&i.Count,
 			&i.ID,
 			&i.Username,
 			&i.Email,
