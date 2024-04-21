@@ -59,6 +59,12 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 				logger.Fatal().Err(err).Msg("failed to ping database at startup")
 			}
 			dbx := store.New(db)
+			// Initialise admin user on first boot; this can be updated after the fact
+			// todo: find a better way to do this
+			err = dbx.BoostrapAdminIfNotExists(ctx, logger)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("failed to boostrap admin user")
+			}
 
 			// Initialize the services.
 			var (
