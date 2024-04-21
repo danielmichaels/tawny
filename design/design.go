@@ -9,7 +9,6 @@ package design
 
 import (
 	"fmt"
-
 	assets "github.com/danielmichaels/tawny"
 	. "goa.design/goa/v3/dsl"
 	cors "goa.design/plugins/v3/cors/dsl"
@@ -90,9 +89,26 @@ func commonCors() {
 	}
 }
 
-func CreatedAndUpdateAtResult() {
-	Attribute("created_at", String, "Created at", func() {})
-	Attribute("updated_at", String, "Updated at", func() {})
+func createdAndUpdateAtResult() {
+	Attribute("created_at", String, "Created at", func() { Example("2024-04-18 01:18:43 +0000") })
+	Attribute("updated_at", String, "Updated at", func() { Example("2024-04-21 11:43:02 +0000") })
+}
+
+func paginationParams() {
+	Param("page_size", Int)
+	Param("page_number", Int)
+}
+func paginationPayload() {
+	Attribute("page_size", Int, func() {
+		Description("The maximum number of results to return.")
+		Default(20)
+		Example(20)
+	})
+	Attribute("page_number", Int, func() {
+		Description("The page number to view")
+		Default(1)
+		Example(1)
+	})
 }
 
 // genURL joins two url strings together as a single valid URL path

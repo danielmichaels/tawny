@@ -10,11 +10,9 @@ SELECT EXISTS (SELECT 1
 -- name: UpdateUserRole :exec
 UPDATE user_team_mapping
 SET role = $1
-WHERE user_id = (
-    SELECT id
-    FROM users u
-    WHERE u.user_id = $2
-);
+WHERE user_id = (SELECT id
+                 FROM users u
+                 WHERE u.user_id = $2);
 
 -- Create a new user and a team for them
 -- name: CreateUserWithNewTeam :one
@@ -49,12 +47,13 @@ WHERE user_id = $1;
 
 -- List all users associated to authorized user
 -- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.verified
+SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
                       FROM user_team_mapping utm_inner
-                      WHERE utm_inner.user_id = $1);
+                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
+                      WHERE u_inner.user_id = $1);
 
 -- Create a team
 -- name: CreateTeam :one

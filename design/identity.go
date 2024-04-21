@@ -62,6 +62,7 @@ var _ = Service("identity", func() {
 				String,
 				func() { Description("API key"); Example("key_000000000000") },
 			)
+			paginationPayload()
 			Required(apiKeyName)
 		})
 		Result(UsersResult)
@@ -69,6 +70,7 @@ var _ = Service("identity", func() {
 			GET("/users")
 			Response(StatusOK)
 			Header(apiKeyHeader)
+			paginationParams()
 			commonResponses()
 		})
 	})
@@ -109,27 +111,37 @@ var UserResult = ResultType("application/vnd.tawny.user", func() {
 	Attribute("id", String, "User ID", func() { Example("123") })
 	Attribute("username", String, "Username", func() { Example("username1") })
 	Attribute("email", String, "Email", func() { Example("me@gmail.com") })
-	Attribute("verified", String, "Verified", func() { Example("true") })
-	CreatedAndUpdateAtResult()
-	Required("username", "email")
+	Attribute("role", String, "Role", func() { Example("admin") })
+	Attribute("verified", Boolean, "Verified", func() { Example(true) })
+	createdAndUpdateAtResult()
+	Required("username", "email", "role")
 
 	View(viewDefault, func() {
 		Attribute("id")
 		Attribute("username")
 		Attribute("email")
+		Attribute("role")
 		Attribute("verified")
+		Attribute("created_at")
+		Attribute("updated_at")
 	})
 })
 var UsersResult = ResultType("application/vnd.tawny.users", func() {
 	TypeName("Users")
 	Attributes(func() {
 		Attribute("users", CollectionOf(UserResult))
-		Attribute("total", Int32)
-		Attribute("page", Int32)
-		Required("users", "total", "page")
+		Attribute("metadata", PaginationMetadata)
+		Required("users", "metadata")
 	})
 })
-
+var PaginationMetadata = Type("PaginationMetadata", func() {
+	Attribute("total", Int32, func() { Example(25) })
+	Attribute("current_page", Int32, func() { Example(1) })
+	Attribute("first_page", Int32, func() { Example(1) })
+	Attribute("last_page", Int32, func() { Example(10) })
+	Attribute("page_size", Int32, func() { Example(20) })
+	Required("total", "page_size", "first_page", "current_page", "last_page")
+})
 var TeamIn = Type("Team", func() {
 	Description("Team object")
 	Attribute("name", String, "Name", func() { Example("Dream Team") })

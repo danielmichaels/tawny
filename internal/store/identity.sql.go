@@ -133,23 +133,27 @@ func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.verified
+SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
 FROM users u
          JOIN user_team_mapping utm ON u.id = utm.user_id
 WHERE utm.team_id IN (SELECT utm_inner.team_id
                       FROM user_team_mapping utm_inner
-                      WHERE utm_inner.user_id = $1)
+                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
+                      WHERE u_inner.user_id = $1)
 `
 
 type ListUsersRow struct {
-	ID       int32  `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Verified bool   `json:"verified"`
+	ID        int32              `json:"id"`
+	Username  string             `json:"username"`
+	Email     string             `json:"email"`
+	Verified  bool               `json:"verified"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Role      UserRole           `json:"role"`
 }
 
 // List all users associated to authorized user
-func (q *Queries) ListUsers(ctx context.Context, userID int32) ([]ListUsersRow, error) {
+func (q *Queries) ListUsers(ctx context.Context, userID string) ([]ListUsersRow, error) {
 	rows, err := q.db.Query(ctx, listUsers, userID)
 	if err != nil {
 		return nil, err
@@ -163,6 +167,9 @@ func (q *Queries) ListUsers(ctx context.Context, userID int32) ([]ListUsersRow, 
 			&i.Username,
 			&i.Email,
 			&i.Verified,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}
@@ -237,11 +244,9 @@ func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, apiKey s
 const updateUserRole = `-- name: UpdateUserRole :exec
 UPDATE user_team_mapping
 SET role = $1
-WHERE user_id = (
-    SELECT id
-    FROM users u
-    WHERE u.user_id = $2
-)
+WHERE user_id = (SELECT id
+                 FROM users u
+                 WHERE u.user_id = $2)
 `
 
 type UpdateUserRoleParams struct {

@@ -5,8 +5,10 @@ import (
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
 	"github.com/danielmichaels/tawny/internal/logger"
+	"github.com/danielmichaels/tawny/internal/ptr"
 	"github.com/danielmichaels/tawny/internal/store"
 	"goa.design/goa/v3/security"
+	"math"
 )
 
 // identity service example implementation.
@@ -42,16 +44,51 @@ func (s *identitysrvc) CreateUser(ctx context.Context, p *identity.CreateUserPay
 
 // Retrieve a single user. Can only retrieve users from an associated team.
 func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUserPayload) (res *identity.UserResult, err error) {
-	res = &identity.UserResult{}
-	s.logger.Print("identity.retrieveUser")
-	return
+	u, err := s.db.GetUserByID(ctx, p.ID)
+	if err != nil {
+		return nil, &identity.NotFound{
+			Name:    "not found",
+			Message: "resource not found",
+			Detail:  "resource not found",
+		}
+	}
+	user := &identity.UserResult{
+		ID:        nil,
+		Username:  u.Username,
+		Email:     u.Email,
+		Verified:  &u.Verified,
+		CreatedAt: ptr.Ptr(u.CreatedAt.Time.String()),
+		UpdatedAt: ptr.Ptr(u.UpdatedAt.Time.String()),
+	}
+	return user, nil
 }
 
 // Retrieve all users that this user can see from associated teams.
 func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPayload) (res *identity.Users, err error) {
+	ut := auth.CtxAuthInfo(ctx)
 	res = &identity.Users{}
-	s.logger.Print("identity.listUsers")
-	return
+	u, err := s.db.ListUsers(ctx, ut.User)
+	if err != nil {
+		return nil, &identity.NotFound{
+			Name:    "not found",
+			Message: "resource not found",
+			Detail:  "resource not found",
+		}
+	}
+	users := &identity.Users{}
+	for _, user := range u {
+		users.Users = append(users.Users, &identity.UserResult{
+			Username:  user.Username,
+			Email:     user.Email,
+			Role:      string(user.Role),
+			Verified:  &user.Verified,
+			CreatedAt: ptr.Ptr(user.CreatedAt.Time.String()),
+			UpdatedAt: ptr.Ptr(user.UpdatedAt.Time.String()),
+		})
+	}
+	users.Metadata = CalculateIdentityMetadata(len(users.Users), p.PageNumber, p.PageSize)
+
+	return users, nil
 }
 
 // Create a new team
@@ -59,4 +96,17 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 	res = &identity.Team{}
 	s.logger.Print("identity.createTeam")
 	return
+}
+
+func CalculateIdentityMetadata(totalRecords, page, pageSize int) *identity.PaginationMetadata {
+	if totalRecords == 0 {
+		return &identity.PaginationMetadata{}
+	}
+	return &identity.PaginationMetadata{
+		CurrentPage: int32(page),
+		PageSize:    int32(pageSize),
+		FirstPage:   1,
+		LastPage:    int32(int(math.Ceil(float64(totalRecords) / float64(pageSize)))),
+		Total:       int32(totalRecords),
+	}
 }
