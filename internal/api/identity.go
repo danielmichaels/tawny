@@ -154,6 +154,16 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 	}, nil
 }
 
+func (s *identitysrvc) AddTeamMember(ctx context.Context, payload *identity.AddTeamMemberPayload) (res *identity.Team, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.RemoveTeamMemberPayload) (res *identity.Team, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // parseTeam is a workaround for the 'create_team' stored procedure which returns a string literal
 // instead of Go values. If it cannot be type cast to string it will error.
 func parseTeam(input interface{}) (*identity.Team, error) {

@@ -95,6 +95,48 @@ var _ = Service("identity", func() {
 			commonResponses()
 		})
 	})
+	Method("addTeamMember", func() {
+		Description("Add a user to a team")
+		Payload(func() {
+			Attribute("user_id", String)
+			Attribute("team_id", String)
+			APIKey(
+				apiKeyScheme,
+				apiKeyName,
+				String,
+				func() { Description("API key"); Example("key_000000000000") },
+			)
+			Required("user_id", "team_id", apiKeyName)
+		})
+		Result(TeamResult)
+		HTTP(func() {
+			POST("/teams/{team_id}/users")
+			Response(StatusCreated)
+			Header(apiKeyHeader)
+			commonResponses()
+		})
+	})
+	Method("removeTeamMember", func() {
+		Description("Remove a team member from a team")
+		Payload(func() {
+			Attribute("user_id", String)
+			Attribute("team_id", String)
+			APIKey(
+				apiKeyScheme,
+				apiKeyName,
+				String,
+				func() { Description("API key"); Example("key_000000000000") },
+			)
+			Required("user_id", "team_id", apiKeyName)
+		})
+		Result(TeamResult)
+		HTTP(func() {
+			DELETE("/teams/{team_id}/users")
+			Response(StatusOK)
+			Header(apiKeyHeader)
+			commonResponses()
+		})
+	})
 })
 
 var PaginationMetadata = Type("PaginationMetadata", func() {

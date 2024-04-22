@@ -124,7 +124,7 @@ type GetUserByIDRow struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Get a user
+// Get users in the same team mapping as the logged-in user when provided another user's ID
 func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, userID)
 	var i GetUserByIDRow

@@ -34,7 +34,7 @@ SELECT new_user.user_id, new_team.team_id
 FROM new_user,
      new_team;
 
--- Get a user
+-- Get users in the same team mapping as the logged-in user when provided another user's ID
 -- name: GetUserByID :one
 SELECT user_id,
        username,
