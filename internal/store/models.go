@@ -53,29 +53,46 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
-type Teams struct {
+type PersonalAccessTokens struct {
+	ID            int64              `json:"id"`
+	TokenableType string             `json:"tokenable_type"`
+	TokenableID   string             `json:"tokenable_id"`
+	Name          string             `json:"name"`
+	Token         string             `json:"token"`
+	Abilities     pgtype.Text        `json:"abilities"`
+	LastUsedAt    pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type TeamUser struct {
 	ID        int32              `json:"id"`
-	TeamID    string             `json:"team_id"`
-	Name      string             `json:"name"`
-	Email     string             `json:"email"`
+	TeamID    pgtype.Text        `json:"team_id"`
+	UserID    pgtype.Text        `json:"user_id"`
+	Role      UserRole           `json:"role"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-type UserTeamMapping struct {
-	Role   UserRole `json:"role"`
-	UserID int32    `json:"user_id"`
-	TeamID int32    `json:"team_id"`
+type Teams struct {
+	ID           int32              `json:"id"`
+	Uuid         string             `json:"uuid"`
+	PersonalTeam pgtype.Bool        `json:"personal_team"`
+	Name         string             `json:"name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Users struct {
-	ID        int32              `json:"id"`
-	UserID    string             `json:"user_id"`
-	Username  string             `json:"username"`
-	Password  string             `json:"password"`
-	Email     string             `json:"email"`
-	Verified  bool               `json:"verified"`
-	ApiKey    string             `json:"api_key"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID               int32              `json:"id"`
+	Uuid             string             `json:"uuid"`
+	Name             pgtype.Text        `json:"name"`
+	Email            pgtype.Text        `json:"email"`
+	EmailVerifiedAt  pgtype.Timestamptz `json:"email_verified_at"`
+	Password         pgtype.Text        `json:"password"`
+	RememberToken    pgtype.Text        `json:"remember_token"`
+	CurrentTeamID    pgtype.Int4        `json:"current_team_id"`
+	ProfilePhotoPath pgtype.Text        `json:"profile_photo_path"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }

@@ -25,8 +25,8 @@ func (a *ApiKey) Validate(
 		return ctx, fmt.Errorf("no user matches apikey. err: %w", err)
 	}
 	ctx = CtxSetAuthInfo(ctx, CtxInfo{
-		User: u.UserID,
-		Team: u.TeamID,
+		User: u.UserUuid,
+		Team: u.TeamUuid,
 	})
 	return ctx, nil
 }

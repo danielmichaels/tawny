@@ -7,6 +7,7 @@ import (
 	"github.com/danielmichaels/tawny/internal/config"
 	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"os"
 	"time"
@@ -58,17 +59,22 @@ func (store *Queries) BoostrapAdminIfNotExists(ctx context.Context, logger *logg
 	if pw == "" {
 		return errors.New("ADMIN_PASSWORD environment variable not set")
 	}
+	hpw, err := HashPassword(pw)
+	if err != nil {
+		return err
+	}
 	admin, err := store.CreateUserWithNewTeam(ctx, CreateUserWithNewTeamParams{
-		Name:     "admin",
-		Email:    "admin@tawny.internal",
-		Password: pw,
+		Column1:  pgtype.Text{String: "admin", Valid: true},
+		Name:     pgtype.Text{String: "admin", Valid: true},
+		Email:    pgtype.Text{String: "admin@tawny.internal", Valid: true},
+		Password: pgtype.Text{String: hpw, Valid: true},
 	})
 	if err != nil {
 		return err
 	}
 	err = store.UpdateUserRole(ctx, UpdateUserRoleParams{
-		Role:   UserRoleAdmin,
-		UserID: admin.UserID,
+		Role:  UserRoleAdmin,
+		Token: admin.PersonalAccessToken,
 	})
 	if err != nil {
 		return err

@@ -14,16 +14,17 @@ import (
 const countUsers = `-- name: CountUsers :one
 SELECT count(*) OVER ()
 FROM users u
-         JOIN user_team_mapping utm ON u.id = utm.user_id
-WHERE utm.team_id IN (SELECT utm_inner.team_id
-                      FROM user_team_mapping utm_inner
-                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
-                      WHERE u_inner.user_id = $1)
+         JOIN team_user tu ON u.uuid = tu.user_id
+WHERE tu.team_id IN (SELECT team_id
+                     FROM team_user
+                     WHERE user_id = (SELECT tokenable_id
+                                      FROM personal_access_tokens
+                                      WHERE token = $1))
 `
 
 // Count all users the authorized user can see; used in pagination
-func (q *Queries) CountUsers(ctx context.Context, userID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers, userID)
+func (q *Queries) CountUsers(ctx context.Context, token string) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, token)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -41,7 +42,7 @@ type CreateTeamParams struct {
 }
 
 // Create a team; leverages 'create_team' function which when supplied
-// name, email and user_id will either create a team or error on permissions
+// name, email, and user_id will either create a team or error on permissions
 func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (interface{}, error) {
 	row := q.db.QueryRow(ctx, createTeam, arg.TeamName, arg.TeamEmail, arg.CurrentUserID)
 	var create_team interface{}
@@ -51,49 +52,62 @@ func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (interfa
 
 const createUserWithNewTeam = `-- name: CreateUserWithNewTeam :one
 WITH new_team AS (
-    INSERT INTO teams (name, email)
-        VALUES ($1, $2)
-        RETURNING id,team_id),
+    INSERT INTO teams (name, personal_team)
+        VALUES (COALESCE($1 || '_team', 'default_team'), true)
+        RETURNING uuid, id),
      new_user AS (
-         INSERT INTO users (username, email, password, verified)
-             VALUES ($1, $2, $3, false)
-             RETURNING id,user_id),
-     new_user_team as (
-         INSERT INTO user_team_mapping (user_id, team_id)
-             SELECT new_user.id, new_team.id
-             FROM new_user,
-                  new_team
-             RETURNING user_id, team_id)
-SELECT new_user.user_id, new_team.team_id
+         INSERT INTO users (name, email, password, current_team_id)
+             VALUES ($2, $3, $4, (SELECT id FROM new_team))
+             RETURNING uuid),
+     new_user_team AS (
+         INSERT INTO team_user (team_id, user_id, role)
+             SELECT new_team.uuid, new_user.uuid, 'maintainer'
+             FROM new_team,
+                  new_user
+             RETURNING user_id, team_id),
+     new_token AS (
+         INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token)
+             SELECT 'user', new_user.uuid, 'default', ('key_' || generate_uid(12))
+             FROM new_user
+             RETURNING token)
+SELECT new_user.uuid AS user_id, new_team.uuid AS team_id, new_token.token AS personal_access_token
 FROM new_user,
-     new_team
+     new_team,
+     new_token
 `
 
 type CreateUserWithNewTeamParams struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Column1  pgtype.Text `json:"column_1"`
+	Name     pgtype.Text `json:"name"`
+	Email    pgtype.Text `json:"email"`
+	Password pgtype.Text `json:"password"`
 }
 
 type CreateUserWithNewTeamRow struct {
-	UserID string `json:"user_id"`
-	TeamID string `json:"team_id"`
+	UserID              string `json:"user_id"`
+	TeamID              string `json:"team_id"`
+	PersonalAccessToken string `json:"personal_access_token"`
 }
 
 // Create a new user and a team for them
 func (q *Queries) CreateUserWithNewTeam(ctx context.Context, arg CreateUserWithNewTeamParams) (CreateUserWithNewTeamRow, error) {
-	row := q.db.QueryRow(ctx, createUserWithNewTeam, arg.Name, arg.Email, arg.Password)
+	row := q.db.QueryRow(ctx, createUserWithNewTeam,
+		arg.Column1,
+		arg.Name,
+		arg.Email,
+		arg.Password,
+	)
 	var i CreateUserWithNewTeamRow
-	err := row.Scan(&i.UserID, &i.TeamID)
+	err := row.Scan(&i.UserID, &i.TeamID, &i.PersonalAccessToken)
 	return i, err
 }
 
 const doesAdminExist = `-- name: DoesAdminExist :one
 SELECT EXISTS (SELECT 1
                FROM users u
-                        JOIN user_team_mapping utm ON u.id = utm.user_id
-               WHERE u.username = 'admin'
-                 AND utm.role = 'admin') AS admin_exists
+                        JOIN team_user tu ON u.uuid = tu.user_id
+               WHERE u.name = 'admin'
+                 AND tu.role = 'admin') AS admin_exists
 `
 
 // Create admin user (for initial setup only)
@@ -105,34 +119,29 @@ func (q *Queries) DoesAdminExist(ctx context.Context) (bool, error) {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT user_id,
-       username,
-       email,
-       verified,
-       created_at,
-       updated_at
+SELECT uuid, name, email, created_at, updated_at
 FROM users
-WHERE user_id = $1
+WHERE id = (SELECT tokenable_id
+            FROM personal_access_tokens
+            WHERE token = $1)
 `
 
 type GetUserByIDRow struct {
-	UserID    string             `json:"user_id"`
-	Username  string             `json:"username"`
-	Email     string             `json:"email"`
-	Verified  bool               `json:"verified"`
+	Uuid      string             `json:"uuid"`
+	Name      pgtype.Text        `json:"name"`
+	Email     pgtype.Text        `json:"email"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 // Get users in the same team mapping as the logged-in user when provided another user's ID
-func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRow, error) {
-	row := q.db.QueryRow(ctx, getUserByID, userID)
+func (q *Queries) GetUserByID(ctx context.Context, token string) (GetUserByIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserByID, token)
 	var i GetUserByIDRow
 	err := row.Scan(
-		&i.UserID,
-		&i.Username,
+		&i.Uuid,
+		&i.Name,
 		&i.Email,
-		&i.Verified,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -140,36 +149,36 @@ func (q *Queries) GetUserByID(ctx context.Context, userID string) (GetUserByIDRo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.verified, u.created_at, u.updated_at, utm.role
+SELECT u.id, u.name, u.email, u.created_at, u.updated_at, tu.role
 FROM users u
-         JOIN user_team_mapping utm ON u.id = utm.user_id
-WHERE utm.team_id IN (SELECT utm_inner.team_id
-                      FROM user_team_mapping utm_inner
-                               JOIN users u_inner ON utm_inner.user_id = u_inner.id
-                      WHERE u_inner.user_id = $1)
+         JOIN team_user tu ON u.id = tu.user_id
+WHERE tu.team_id IN (SELECT team_id
+                     FROM team_user
+                     WHERE user_id = (SELECT tokenable_id
+                                      FROM personal_access_tokens
+                                      WHERE token = $1))
 ORDER BY u.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type ListUsersParams struct {
-	UserID string `json:"user_id"`
+	Token  string `json:"token"`
 	Limit  int32  `json:"limit"`
 	Offset int32  `json:"offset"`
 }
 
 type ListUsersRow struct {
 	ID        int32              `json:"id"`
-	Username  string             `json:"username"`
-	Email     string             `json:"email"`
-	Verified  bool               `json:"verified"`
+	Name      pgtype.Text        `json:"name"`
+	Email     pgtype.Text        `json:"email"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 	Role      UserRole           `json:"role"`
 }
 
-// List all users associated to authorized user and get total count
+// List all users associated with the authorized user and get the total count
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listUsers, arg.Token, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -179,9 +188,8 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 		var i ListUsersRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Username,
+			&i.Name,
 			&i.Email,
-			&i.Verified,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Role,
@@ -197,59 +205,47 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 }
 
 const retrieveUserWithTeamInfoByAPIKEY = `-- name: RetrieveUserWithTeamInfoByAPIKEY :one
-SELECT u.id         AS user_pk,
-       u.user_id,
-       u.username,
+SELECT u.uuid       AS user_uuid,
+       u.name       AS username,
        u.email      AS user_email,
-       u.verified   AS user_verified,
        u.created_at AS user_created_at,
        u.updated_at AS user_updated_at,
-       t.id         AS team_pk,
-       t.team_id    AS team_id,
+       t.uuid       AS team_uuid,
        t.name       AS team_name,
-       t.email      AS team_email,
        t.created_at AS team_created_at,
        t.updated_at AS team_updated_at
 FROM users u
-         JOIN
-     user_team_mapping ut ON u.id = ut.user_id
-         JOIN
-     teams t ON ut.team_id = t.id
-WHERE u.api_key = $1
+         JOIN team_user tu ON u.id = tu.user_id
+         JOIN teams t ON tu.team_id = t.id
+WHERE u.id = (SELECT tokenable_id
+              FROM personal_access_tokens
+              WHERE token = $1)
 `
 
 type RetrieveUserWithTeamInfoByAPIKEYRow struct {
-	UserPk        int32              `json:"user_pk"`
-	UserID        string             `json:"user_id"`
-	Username      string             `json:"username"`
-	UserEmail     string             `json:"user_email"`
-	UserVerified  bool               `json:"user_verified"`
+	UserUuid      string             `json:"user_uuid"`
+	Username      pgtype.Text        `json:"username"`
+	UserEmail     pgtype.Text        `json:"user_email"`
 	UserCreatedAt pgtype.Timestamptz `json:"user_created_at"`
 	UserUpdatedAt pgtype.Timestamptz `json:"user_updated_at"`
-	TeamPk        int32              `json:"team_pk"`
-	TeamID        string             `json:"team_id"`
+	TeamUuid      string             `json:"team_uuid"`
 	TeamName      string             `json:"team_name"`
-	TeamEmail     string             `json:"team_email"`
 	TeamCreatedAt pgtype.Timestamptz `json:"team_created_at"`
 	TeamUpdatedAt pgtype.Timestamptz `json:"team_updated_at"`
 }
 
 // Retrieve user with team info (used in API-KEY auth)
-func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, apiKey string) (RetrieveUserWithTeamInfoByAPIKEYRow, error) {
-	row := q.db.QueryRow(ctx, retrieveUserWithTeamInfoByAPIKEY, apiKey)
+func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, token string) (RetrieveUserWithTeamInfoByAPIKEYRow, error) {
+	row := q.db.QueryRow(ctx, retrieveUserWithTeamInfoByAPIKEY, token)
 	var i RetrieveUserWithTeamInfoByAPIKEYRow
 	err := row.Scan(
-		&i.UserPk,
-		&i.UserID,
+		&i.UserUuid,
 		&i.Username,
 		&i.UserEmail,
-		&i.UserVerified,
 		&i.UserCreatedAt,
 		&i.UserUpdatedAt,
-		&i.TeamPk,
-		&i.TeamID,
+		&i.TeamUuid,
 		&i.TeamName,
-		&i.TeamEmail,
 		&i.TeamCreatedAt,
 		&i.TeamUpdatedAt,
 	)
@@ -257,20 +253,20 @@ func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, apiKey s
 }
 
 const updateUserRole = `-- name: UpdateUserRole :exec
-UPDATE user_team_mapping
+UPDATE team_user
 SET role = $1
-WHERE user_id = (SELECT id
-                 FROM users u
-                 WHERE u.user_id = $2)
+WHERE user_id = (SELECT tokenable_id
+                 FROM personal_access_tokens
+                 WHERE token = $2)
 `
 
 type UpdateUserRoleParams struct {
-	Role   UserRole `json:"role"`
-	UserID string   `json:"user_id"`
+	Role  UserRole `json:"role"`
+	Token string   `json:"token"`
 }
 
 // Update a user role
 func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) error {
-	_, err := q.db.Exec(ctx, updateUserRole, arg.Role, arg.UserID)
+	_, err := q.db.Exec(ctx, updateUserRole, arg.Role, arg.Token)
 	return err
 }

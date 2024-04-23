@@ -58,10 +58,11 @@ func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUse
 		}
 	}
 	user := &identity.UserResult{
-		ID:        nil,
-		Username:  u.Username,
-		Email:     u.Email,
-		Verified:  &u.Verified,
+		UserUUID: &u.Uuid,
+		Name:     u.Name.String,
+		Email:    u.Email.String,
+		//Role:      u.,
+		//Verified:  nil,
 		CreatedAt: ptr.Ptr(u.CreatedAt.Time.String()),
 		UpdatedAt: ptr.Ptr(u.UpdatedAt.Time.String()),
 	}
@@ -73,7 +74,7 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 	ut := auth.CtxAuthInfo(ctx)
 	ps, pn := design.PaginationQueryParams(p.PageSize, p.PageNumber)
 	u, err := s.db.ListUsers(ctx, store.ListUsersParams{
-		UserID: ut.User,
+		Token:  ut.User,
 		Limit:  ps,
 		Offset: pn,
 	})
@@ -91,10 +92,9 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 	var users = &identity.Users{}
 	for _, user := range u {
 		users.Users = append(users.Users, &identity.UserResult{
-			Username:  user.Username,
-			Email:     user.Email,
+			Name:      user.Name.String,
+			Email:     user.Email.String,
 			Role:      string(user.Role),
-			Verified:  &user.Verified,
 			CreatedAt: ptr.Ptr(user.CreatedAt.Time.String()),
 			UpdatedAt: ptr.Ptr(user.UpdatedAt.Time.String()),
 		})
@@ -146,7 +146,7 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 	}
 
 	return &identity.Team{
-		TeamID:    team.TeamID,
+		TeamUUID:  team.TeamUUID,
 		Name:      team.Name,
 		Email:     team.Email,
 		CreatedAt: team.CreatedAt,
@@ -188,7 +188,7 @@ func parseTeam(input interface{}) (*identity.Team, error) {
 
 	// Create Team and assign values
 	t := &identity.Team{
-		TeamID:    parts[0],
+		TeamUUID:  parts[0],
 		Name:      parts[1],
 		Email:     parts[2],
 		CreatedAt: &parts[3], // or use a function to parse into datetime if necessary
