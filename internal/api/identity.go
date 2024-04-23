@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/danielmichaels/tawny/design"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
@@ -54,7 +53,6 @@ func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUse
 		Uuid:   p.UserID,
 		UserID: pgtype.Text{String: ut.UserUUID, Valid: true},
 	})
-	fmt.Printf("Auth: %v RU [users.uuid]: %q - [payload.user_id]: %q\n", ut, u.Uuid, p.UserID)
 	if err != nil {
 		return nil, &identity.NotFound{
 			Name:    "not found",
@@ -131,6 +129,8 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 				Name:    "internal server error",
 				Message: "an unknown error occurred",
 			}
+		case len(t.Uuid) == 0:
+			return nil, &identity.Unauthorized{Message: "user not authorised to create teams"}
 		default:
 			s.logger.Error().Err(err).Msg("error creating team")
 			return nil, &identity.ServerError{
@@ -149,11 +149,13 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 
 func (s *identitysrvc) AddTeamMember(ctx context.Context, payload *identity.AddTeamMemberPayload) (res *identity.Team, err error) {
 	//TODO implement me
+	// must be admin and should only be able to invite members
 	panic("implement me")
 }
 
 func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.RemoveTeamMemberPayload) (res *identity.Team, err error) {
 	//TODO implement me
+	// must be admin
 	panic("implement me")
 }
 
