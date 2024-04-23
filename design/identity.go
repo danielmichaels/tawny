@@ -33,7 +33,7 @@ var _ = Service("identity", func() {
 	Method("retrieveUser", func() {
 		Description("Retrieve a single user. Can only retrieve users from an associated team.")
 		Payload(func() {
-			Attribute("id", String, "ID of the user", func() {
+			Attribute("user_id", String, "UUID of the user", func() {
 				Pattern(userRx)
 				Example("user_123456789012")
 			})
@@ -43,11 +43,11 @@ var _ = Service("identity", func() {
 				String,
 				func() { Description("API key"); Example("key_000000000000") },
 			)
-			Required("id", apiKeyName)
+			Required("user_id", apiKeyName)
 		})
 		Result(UserResult)
 		HTTP(func() {
-			GET("/users/{id}")
+			GET("/users/{user_id}")
 			Response(StatusOK)
 			Header(apiKeyHeader)
 			commonResponses()
@@ -185,21 +185,20 @@ var UsersResult = ResultType("application/vnd.tawny.users", func() {
 var TeamIn = Type("Team", func() {
 	Description("Team object")
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
-	Attribute("email", String, "Email", func() { Example("my-team@teamsters.com") })
-	Required("name", "email")
+	Required("name")
 })
 var TeamResult = ResultType("application/vnd.tawny.team", func() {
 	TypeName("Team")
 	Description("A single team")
-	Attribute("team_uuid", String, "Team ID", func() { Example("team_123456789012") })
+	Attribute("uuid", String, "Team ID", func() { Example("team_123456789012") })
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
-	Attribute("email", String, "Email", func() { Example("my-team@teamsters.com") })
+	Attribute("personal_team", Boolean, "personal_team", func() { Example(false) })
 	createdAndUpdateAtResult()
-	Required("team_uuid", "name", "email")
+	Required("uuid", "name", "personal_team")
 
 	View(viewDefault, func() {
-		Attribute("team_uuid")
+		Attribute("uuid")
 		Attribute("name")
-		Attribute("email")
+		Attribute("personal_team")
 	})
 })

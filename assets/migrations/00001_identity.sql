@@ -86,47 +86,6 @@ CREATE INDEX personal_access_tokens_tokenable_id_index
 CREATE INDEX team_user_team_id_idx ON team_user (team_id);
 -- Add index to user_id column in team_user table
 CREATE INDEX team_user_user_id_idx ON team_user (user_id);
--- CreateTeam function; ensure only 'admin' can create teams
-CREATE OR REPLACE FUNCTION create_team(
-    team_name TEXT,
-    team_email TEXT,
-    current_user_id TEXT
-)
-    RETURNS TABLE
-            (
-                team_id    TEXT,
-                name       TEXT,
-                email      TEXT,
-                updated_at TIMESTAMP
-            )
-AS
-$$
-DECLARE
-    new_team_id    TEXT;
-    new_name       TEXT;
-    new_email      TEXT;
-    new_updated_at TIMESTAMP;
-BEGIN
-    -- Check if the current user has the 'admin' role
-    IF EXISTS (SELECT 1
-               FROM team_user tm
-                        JOIN users u ON tm.user_id = u.id
-               WHERE u.id = current_user_id
-                 AND tm.role = 'admin') THEN
-        -- Insert the new team
-        INSERT INTO teams (name, email)
-        VALUES (team_name, team_email)
-        RETURNING teams.id, teams.name, teams.updated_at
-            INTO new_team_id, new_name, new_email, new_updated_at;
-
-        -- Return the inserted team
-        RETURN QUERY SELECT new_team_id, new_name, new_email, new_updated_at;
-    ELSE
-        RAISE EXCEPTION 'Only admins can create teams';
-    END IF;
-END;
-$$
-    LANGUAGE plpgsql VOLATILE;;
 -- Triggers
 CREATE TRIGGER trigger_updated_at_users
     BEFORE UPDATE

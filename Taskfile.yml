@@ -158,7 +158,14 @@ tasks:
     cmds:
       - docker compose up -d
       - docker compose logs -f
-
+  db:psql:
+    desc: Drop into the `psql` shell
+    cmds:
+      - docker exec -it {{.DATABASE_CONTAINER_NAME}} psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" {{.CLI_ARGS}}
+  db:bash:
+    desc: Drop into PG with bash
+    cmds:
+      - docker exec -it {{.DB_CONTAINER_NAME}} bash {{.CLI_ARGS}}
   test:
     desc: Run all tests
     cmds:

@@ -11,9 +11,9 @@ import (
 	"github.com/danielmichaels/tawny/internal/ptr"
 	"github.com/danielmichaels/tawny/internal/store"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"goa.design/goa/v3/security"
 	"math"
-	"strings"
 )
 
 // identity service example implementation.
@@ -49,7 +49,12 @@ func (s *identitysrvc) CreateUser(ctx context.Context, p *identity.CreateUserPay
 
 // Retrieve a single user. Can only retrieve users from an associated team.
 func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUserPayload) (res *identity.UserResult, err error) {
-	u, err := s.db.GetUserByID(ctx, p.ID)
+	ut := auth.CtxAuthInfo(ctx)
+	u, err := s.db.GetUserByID(ctx, store.GetUserByIDParams{
+		Uuid:   p.UserID,
+		UserID: pgtype.Text{String: ut.UserUUID, Valid: true},
+	})
+	fmt.Printf("Auth: %v RU [users.uuid]: %q - [payload.user_id]: %q\n", ut, u.Uuid, p.UserID)
 	if err != nil {
 		return nil, &identity.NotFound{
 			Name:    "not found",
@@ -58,11 +63,10 @@ func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUse
 		}
 	}
 	user := &identity.UserResult{
-		UserUUID: &u.Uuid,
-		Name:     u.Name.String,
-		Email:    u.Email.String,
-		//Role:      u.,
-		//Verified:  nil,
+		UserUUID:  &u.Uuid,
+		Name:      u.Name.String,
+		Email:     u.Email.String,
+		Role:      string(u.Role),
 		CreatedAt: ptr.Ptr(u.CreatedAt.Time.String()),
 		UpdatedAt: ptr.Ptr(u.UpdatedAt.Time.String()),
 	}
@@ -74,7 +78,7 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 	ut := auth.CtxAuthInfo(ctx)
 	ps, pn := design.PaginationQueryParams(p.PageSize, p.PageNumber)
 	u, err := s.db.ListUsers(ctx, store.ListUsersParams{
-		Token:  ut.User,
+		TeamID: pgtype.Text{String: ut.TeamUUID, Valid: true},
 		Limit:  ps,
 		Offset: pn,
 	})
@@ -85,7 +89,7 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 			Detail:  "resource not found",
 		}
 	}
-	count, err := s.db.CountUsers(ctx, ut.User)
+	count, err := s.db.CountUsers(ctx, pgtype.Text{String: ut.TeamUUID, Valid: true})
 	if err != nil {
 		count = 0
 	}
@@ -107,9 +111,8 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPayload) (res *identity.Team, err error) {
 	ut := auth.CtxAuthInfo(ctx)
 	t, err := s.db.CreateTeam(ctx, store.CreateTeamParams{
-		TeamName:      p.Team.Name,
-		TeamEmail:     p.Team.Email,
-		CurrentUserID: ut.User,
+		UserID: pgtype.Text{String: ut.UserUUID, Valid: true},
+		Name:   p.Team.Name,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -136,21 +139,11 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 			}
 		}
 	}
-	team, err := parseTeam(t)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("error parsing team")
-		return nil, &identity.ServerError{
-			Name:    "internal server error",
-			Message: "an unknown error occurred",
-		}
-	}
 
 	return &identity.Team{
-		TeamUUID:  team.TeamUUID,
-		Name:      team.Name,
-		Email:     team.Email,
-		CreatedAt: team.CreatedAt,
-		UpdatedAt: team.UpdatedAt,
+		UUID:         t.Uuid,
+		Name:         t.Name,
+		PersonalTeam: t.PersonalTeam.Bool,
 	}, nil
 }
 
@@ -164,39 +157,6 @@ func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.R
 	panic("implement me")
 }
 
-// parseTeam is a workaround for the 'create_team' stored procedure which returns a string literal
-// instead of Go values. If it cannot be type cast to string it will error.
-func parseTeam(input interface{}) (*identity.Team, error) {
-	s, ok := input.(string)
-	if !ok {
-		return nil, fmt.Errorf("unable to parse team")
-	}
-	// Remove parenthesis
-	s = strings.TrimLeft(s, "(")
-	s = strings.TrimRight(s, ")")
-
-	// Split by comma
-	parts := strings.Split(s, ",")
-	if len(parts) != 4 {
-		return nil, fmt.Errorf("invalid format")
-	}
-
-	// Remove quotes
-	for i := range parts {
-		parts[i] = strings.Trim(parts[i], "\"")
-	}
-
-	// Create Team and assign values
-	t := &identity.Team{
-		TeamUUID:  parts[0],
-		Name:      parts[1],
-		Email:     parts[2],
-		CreatedAt: &parts[3], // or use a function to parse into datetime if necessary
-		UpdatedAt: nil,       // assuming that updated_at is not provided in the original string
-	}
-
-	return t, nil
-}
 func CalculateIdentityMetadata(totalRecords, page, pageSize int) *identity.PaginationMetadata {
 	if totalRecords == 0 {
 		return &identity.PaginationMetadata{}

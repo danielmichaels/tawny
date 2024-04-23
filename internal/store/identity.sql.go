@@ -12,42 +12,54 @@ import (
 )
 
 const countUsers = `-- name: CountUsers :one
+
+
 SELECT count(*) OVER ()
 FROM users u
          JOIN team_user tu ON u.uuid = tu.user_id
-WHERE tu.team_id IN (SELECT team_id
-                     FROM team_user
-                     WHERE user_id = (SELECT tokenable_id
-                                      FROM personal_access_tokens
-                                      WHERE token = $1))
+WHERE tu.team_id IN (SELECT tu.team_id
+                     FROM team_user tu
+                     WHERE tu.team_id = $1)
 `
 
+// $2 is the UUID of the authenticated user
 // Count all users the authorized user can see; used in pagination
-func (q *Queries) CountUsers(ctx context.Context, token string) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers, token)
+func (q *Queries) CountUsers(ctx context.Context, teamID pgtype.Text) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, teamID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createTeam = `-- name: CreateTeam :one
-SELECT create_team
-FROM create_team($1, $2, $3)
+WITH admin_check AS (SELECT 1
+                     FROM team_user
+                     WHERE user_id = $1 -- uuid of the user
+                       AND role = 'admin')
+INSERT
+INTO teams (name, personal_team)
+SELECT $2, false -- name of the new team
+WHERE EXISTS (SELECT 1 FROM admin_check)
+RETURNING name, uuid, personal_team
 `
 
 type CreateTeamParams struct {
-	TeamName      string `json:"team_name"`
-	TeamEmail     string `json:"team_email"`
-	CurrentUserID string `json:"current_user_id"`
+	UserID pgtype.Text `json:"user_id"`
+	Name   string      `json:"name"`
 }
 
-// Create a team; leverages 'create_team' function which when supplied
-// name, email, and user_id will either create a team or error on permissions
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (interface{}, error) {
-	row := q.db.QueryRow(ctx, createTeam, arg.TeamName, arg.TeamEmail, arg.CurrentUserID)
-	var create_team interface{}
-	err := row.Scan(&create_team)
-	return create_team, err
+type CreateTeamRow struct {
+	Name         string      `json:"name"`
+	Uuid         string      `json:"uuid"`
+	PersonalTeam pgtype.Bool `json:"personal_team"`
+}
+
+// Create a new team. Can only be created by a user with admin privileges
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
+	row := q.db.QueryRow(ctx, createTeam, arg.UserID, arg.Name)
+	var i CreateTeamRow
+	err := row.Scan(&i.Name, &i.Uuid, &i.PersonalTeam)
+	return i, err
 }
 
 const createUserWithNewTeam = `-- name: CreateUserWithNewTeam :one
@@ -89,7 +101,9 @@ type CreateUserWithNewTeamRow struct {
 	PersonalAccessToken string `json:"personal_access_token"`
 }
 
-// Create a new user and a team for them
+// Create a new user and a team for them. This is only done once when a user
+// is registered. All other team creation is done via CreateTeam and users must
+// be manually invited into the new team.
 func (q *Queries) CreateUserWithNewTeam(ctx context.Context, arg CreateUserWithNewTeamParams) (CreateUserWithNewTeamRow, error) {
 	row := q.db.QueryRow(ctx, createUserWithNewTeam,
 		arg.Column1,
@@ -119,12 +133,17 @@ func (q *Queries) DoesAdminExist(ctx context.Context) (bool, error) {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT uuid, name, email, created_at, updated_at
-FROM users
-WHERE id = (SELECT tokenable_id
-            FROM personal_access_tokens
-            WHERE token = $1)
+SELECT u.uuid, u.name, u.email, u.created_at, u.updated_at, tu.role
+FROM users u
+         JOIN team_user tu ON u.uuid = tu.user_id
+WHERE u.uuid = $1 -- $1 is the UUID of the user you want to retrieve
+  AND tu.team_id IN (SELECT ut.team_id FROM team_user ut WHERE ut.user_id = $2)
 `
+
+type GetUserByIDParams struct {
+	Uuid   string      `json:"uuid"`
+	UserID pgtype.Text `json:"user_id"`
+}
 
 type GetUserByIDRow struct {
 	Uuid      string             `json:"uuid"`
@@ -132,11 +151,12 @@ type GetUserByIDRow struct {
 	Email     pgtype.Text        `json:"email"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Role      UserRole           `json:"role"`
 }
 
 // Get users in the same team mapping as the logged-in user when provided another user's ID
-func (q *Queries) GetUserByID(ctx context.Context, token string) (GetUserByIDRow, error) {
-	row := q.db.QueryRow(ctx, getUserByID, token)
+func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (GetUserByIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserByID, arg.Uuid, arg.UserID)
 	var i GetUserByIDRow
 	err := row.Scan(
 		&i.Uuid,
@@ -144,6 +164,7 @@ func (q *Queries) GetUserByID(ctx context.Context, token string) (GetUserByIDRow
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
@@ -151,20 +172,18 @@ func (q *Queries) GetUserByID(ctx context.Context, token string) (GetUserByIDRow
 const listUsers = `-- name: ListUsers :many
 SELECT u.id, u.name, u.email, u.created_at, u.updated_at, tu.role
 FROM users u
-         JOIN team_user tu ON u.id = tu.user_id
+         JOIN team_user tu ON u.uuid = tu.user_id
 WHERE tu.team_id IN (SELECT team_id
                      FROM team_user
-                     WHERE user_id = (SELECT tokenable_id
-                                      FROM personal_access_tokens
-                                      WHERE token = $1))
+                     WHERE tu.team_id = $1)
 ORDER BY u.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
 type ListUsersParams struct {
-	Token  string `json:"token"`
-	Limit  int32  `json:"limit"`
-	Offset int32  `json:"offset"`
+	TeamID pgtype.Text `json:"team_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type ListUsersRow struct {
@@ -178,7 +197,7 @@ type ListUsersRow struct {
 
 // List all users associated with the authorized user and get the total count
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Token, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listUsers, arg.TeamID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -205,49 +224,31 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 }
 
 const retrieveUserWithTeamInfoByAPIKEY = `-- name: RetrieveUserWithTeamInfoByAPIKEY :one
-SELECT u.uuid       AS user_uuid,
-       u.name       AS username,
-       u.email      AS user_email,
-       u.created_at AS user_created_at,
-       u.updated_at AS user_updated_at,
-       t.uuid       AS team_uuid,
-       t.name       AS team_name,
-       t.created_at AS team_created_at,
-       t.updated_at AS team_updated_at
+SELECT u.uuid, u.name, u.email, t.name, t.uuid AS team_uuid
 FROM users u
-         JOIN team_user tu ON u.id = tu.user_id
-         JOIN teams t ON tu.team_id = t.id
-WHERE u.id = (SELECT tokenable_id
-              FROM personal_access_tokens
-              WHERE token = $1)
+         JOIN personal_access_tokens pat ON u.uuid = pat.tokenable_id
+         JOIN team_user tu ON u.uuid = tu.user_id
+         JOIN teams t ON tu.team_id = t.uuid
+WHERE pat.token = $1
 `
 
 type RetrieveUserWithTeamInfoByAPIKEYRow struct {
-	UserUuid      string             `json:"user_uuid"`
-	Username      pgtype.Text        `json:"username"`
-	UserEmail     pgtype.Text        `json:"user_email"`
-	UserCreatedAt pgtype.Timestamptz `json:"user_created_at"`
-	UserUpdatedAt pgtype.Timestamptz `json:"user_updated_at"`
-	TeamUuid      string             `json:"team_uuid"`
-	TeamName      string             `json:"team_name"`
-	TeamCreatedAt pgtype.Timestamptz `json:"team_created_at"`
-	TeamUpdatedAt pgtype.Timestamptz `json:"team_updated_at"`
+	Uuid     string      `json:"uuid"`
+	Name     pgtype.Text `json:"name"`
+	Email    pgtype.Text `json:"email"`
+	Name_2   string      `json:"name_2"`
+	TeamUuid string      `json:"team_uuid"`
 }
 
-// Retrieve user with team info (used in API-KEY auth)
 func (q *Queries) RetrieveUserWithTeamInfoByAPIKEY(ctx context.Context, token string) (RetrieveUserWithTeamInfoByAPIKEYRow, error) {
 	row := q.db.QueryRow(ctx, retrieveUserWithTeamInfoByAPIKEY, token)
 	var i RetrieveUserWithTeamInfoByAPIKEYRow
 	err := row.Scan(
-		&i.UserUuid,
-		&i.Username,
-		&i.UserEmail,
-		&i.UserCreatedAt,
-		&i.UserUpdatedAt,
+		&i.Uuid,
+		&i.Name,
+		&i.Email,
+		&i.Name_2,
 		&i.TeamUuid,
-		&i.TeamName,
-		&i.TeamCreatedAt,
-		&i.TeamUpdatedAt,
 	)
 	return i, err
 }

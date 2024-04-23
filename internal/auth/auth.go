@@ -25,15 +25,15 @@ func (a *ApiKey) Validate(
 		return ctx, fmt.Errorf("no user matches apikey. err: %w", err)
 	}
 	ctx = CtxSetAuthInfo(ctx, CtxInfo{
-		User: u.UserUuid,
-		Team: u.TeamUuid,
+		UserUUID: u.Uuid,
+		TeamUUID: u.TeamUuid,
 	})
 	return ctx, nil
 }
 
 type CtxInfo struct {
-	User string
-	Team string
+	UserUUID string
+	TeamUUID string
 }
 type ctxValue int
 

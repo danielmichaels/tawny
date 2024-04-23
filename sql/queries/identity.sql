@@ -13,7 +13,9 @@ WHERE user_id = (SELECT tokenable_id
                  FROM personal_access_tokens
                  WHERE token = $2);
 
--- Create a new user and a team for them
+-- Create a new user and a team for them. This is only done once when a user
+-- is registered. All other team creation is done via CreateTeam and users must
+-- be manually invited into the new team.
 -- name: CreateUserWithNewTeam :one
 WITH new_team AS (
     INSERT INTO teams (name, personal_team)
@@ -41,56 +43,49 @@ FROM new_user,
 
 -- Get users in the same team mapping as the logged-in user when provided another user's ID
 -- name: GetUserByID :one
-SELECT uuid, name, email, created_at, updated_at
-FROM users
-WHERE id = (SELECT tokenable_id
-            FROM personal_access_tokens
-            WHERE token = $1);
+SELECT u.uuid, u.name, u.email, u.created_at, u.updated_at, tu.role
+FROM users u
+         JOIN team_user tu ON u.uuid = tu.user_id
+WHERE u.uuid = $1 -- $1 is the UUID of the user you want to retrieve
+  AND tu.team_id IN (SELECT ut.team_id FROM team_user ut WHERE ut.user_id = $2); -- $2 is the UUID of the authenticated user
+
 
 -- Count all users the authorized user can see; used in pagination
 -- name: CountUsers :one
 SELECT count(*) OVER ()
 FROM users u
          JOIN team_user tu ON u.uuid = tu.user_id
-WHERE tu.team_id IN (SELECT team_id
-                     FROM team_user
-                     WHERE user_id = (SELECT tokenable_id
-                                      FROM personal_access_tokens
-                                      WHERE token = $1));
+WHERE tu.team_id IN (SELECT tu.team_id
+                     FROM team_user tu
+                     WHERE tu.team_id = $1);
 
 -- List all users associated with the authorized user and get the total count
 -- name: ListUsers :many
 SELECT u.id, u.name, u.email, u.created_at, u.updated_at, tu.role
 FROM users u
-         JOIN team_user tu ON u.id = tu.user_id
+         JOIN team_user tu ON u.uuid = tu.user_id
 WHERE tu.team_id IN (SELECT team_id
                      FROM team_user
-                     WHERE user_id = (SELECT tokenable_id
-                                      FROM personal_access_tokens
-                                      WHERE token = $1))
+                     WHERE tu.team_id = $1)
 ORDER BY u.created_at DESC
 LIMIT $2 OFFSET $3;
 
--- Create a team; leverages 'create_team' function which when supplied
--- name, email, and user_id will either create a team or error on permissions
+-- Create a new team. Can only be created by a user with admin privileges
 -- name: CreateTeam :one
-SELECT *
-FROM create_team($1, $2, $3);
+WITH admin_check AS (SELECT 1
+                     FROM team_user
+                     WHERE user_id = $1 -- uuid of the user
+                       AND role = 'admin')
+INSERT
+INTO teams (name, personal_team)
+SELECT $2, false -- name of the new team
+WHERE EXISTS (SELECT 1 FROM admin_check)
+RETURNING name, uuid, personal_team;
 
--- Retrieve user with team info (used in API-KEY auth)
 -- name: RetrieveUserWithTeamInfoByAPIKEY :one
-SELECT u.uuid       AS user_uuid,
-       u.name       AS username,
-       u.email      AS user_email,
-       u.created_at AS user_created_at,
-       u.updated_at AS user_updated_at,
-       t.uuid       AS team_uuid,
-       t.name       AS team_name,
-       t.created_at AS team_created_at,
-       t.updated_at AS team_updated_at
+SELECT u.uuid, u.name, u.email, t.name, t.uuid AS team_uuid
 FROM users u
-         JOIN team_user tu ON u.id = tu.user_id
-         JOIN teams t ON tu.team_id = t.id
-WHERE u.id = (SELECT tokenable_id
-              FROM personal_access_tokens
-              WHERE token = $1);
+         JOIN personal_access_tokens pat ON u.uuid = pat.tokenable_id
+         JOIN team_user tu ON u.uuid = tu.user_id
+         JOIN teams t ON tu.team_id = t.uuid
+WHERE pat.token = $1;
