@@ -119,8 +119,8 @@ var _ = Service("identity", func() {
 	Method("removeTeamMember", func() {
 		Description("Remove a team member from a team")
 		Payload(func() {
-			Attribute("user_id", String)
-			Attribute("team_id", String)
+			Attribute("user_id", String, func() { Example("user_000000000000") })
+			Attribute("team_id", String, func() { Example("team_000000000000") })
 			APIKey(
 				apiKeyScheme,
 				apiKeyName,
@@ -131,7 +131,7 @@ var _ = Service("identity", func() {
 		})
 		Result(TeamResult)
 		HTTP(func() {
-			DELETE("/teams/{team_id}/users")
+			DELETE("/teams/{team_id}/{user_id}")
 			Response(StatusOK)
 			Header(apiKeyHeader)
 			commonResponses()
