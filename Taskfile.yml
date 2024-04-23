@@ -7,6 +7,7 @@ vars:
   DESIGN: github.com/danielmichaels/tawny/design
   DATABASE_TYPE: "postgres"
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL_MODE}
+  DATABASE_CONTAINER_NAME: tawny-db
 
   MP_NAME: tawny
   MP_IP: $(multipass info {{.MP_NAME}} --format json| jq -r '.info.{{.MP_NAME}}.ipv4[0]')
@@ -88,7 +89,17 @@ tasks:
     desc: Run a local database for development
     cmds:
       - docker compose up tawny-db -d
+      - sleep 5
+      - task: db:migration:up
+      - task: db:local:seed
       - docker compose logs -f
+
+  db:local:seed:
+    desc: Seed data into the local development DB
+    cmds:
+      - docker cp ./sql/tests/test-data.sql {{.DATABASE_CONTAINER_NAME}}:/tmp/test-data.sql
+      - docker exec -it {{.DATABASE_CONTAINER_NAME}} psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -f /tmp/test-data.sql
+      - docker exec -it {{.DATABASE_CONTAINER_NAME}} rm -rf /tmp/test-data.sql
 
   db:local:down:
     desc: Stop the local database for development
