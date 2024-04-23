@@ -34,7 +34,7 @@ CREATE TYPE user_role AS ENUM ('admin', 'maintainer');
 CREATE TABLE teams
 (
     id            SERIAL PRIMARY KEY,
-    uuid          TEXT UNIQUE                 NOT NULL DEFAULT ('team_' || generate_uid(12)),
+    uuid          TEXT UNIQUE                 NOT NULL DEFAULT ('team_' || generate_uid(7)),
     personal_team BOOLEAN,
     name          TEXT                        NOT NULL DEFAULT '',
     created_at    TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -44,7 +44,7 @@ CREATE TABLE teams
 CREATE TABLE users
 (
     id                 SERIAL PRIMARY KEY,
-    uuid               TEXT UNIQUE                 NOT NULL DEFAULT ('user_' || generate_uid(12)),
+    uuid               TEXT UNIQUE                 NOT NULL DEFAULT ('user_' || generate_uid(7)),
     name               VARCHAR(255),
     email              VARCHAR(255) UNIQUE,
     email_verified_at  TIMESTAMP(0) WITH TIME ZONE NULL,
@@ -70,7 +70,7 @@ CREATE TABLE personal_access_tokens
 (
     id             BIGSERIAL PRIMARY KEY,
     tokenable_type VARCHAR(255)                NOT NULL,
-    tokenable_id   TEXT                        NOT NULL,
+    tokenable_id   TEXT                        NOT NULL DEFAULT ('key_' || generate_uid(7)),
     name           VARCHAR(255)                NOT NULL,
     token          VARCHAR(64)                 NOT NULL,
     abilities      TEXT                        NULL,

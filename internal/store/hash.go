@@ -9,7 +9,7 @@ import (
 // HashPassword will take a string and return a string copy of a bcrypt
 // hashed password.
 func HashPassword(plaintextPassword string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}

@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	userRx            = "^user_[a-zA-Z0-9]{12}$"
-	teamRx            = "^team_[a-zA-Z0-9]{12}$"
-	keyRx             = "^key_[a-zA-Z0-9]{12}$"
+	userRx            = "^user_[a-zA-Z0-9]{7}$"
+	teamRx            = "^team_[a-zA-Z0-9]{7}$"
+	keyRx             = "^key_[a-zA-Z0-9]{7}$"
 	apiKeyScheme      = "api_key"
 	apiKeyName        = "key"
 	apiKeyHeaderValue = "X-API-KEY"
@@ -123,7 +123,7 @@ func genURL(base, endpoint string) string {
 var NotFound = Type("not-found", func() {
 	Description("not-found indicates the resource matching the id does not exist.")
 	Attribute("id", String, "ID of device", func() {
-		Example("resource_12345678")
+		Example("resource_1234567")
 	})
 	Attribute("name", String, "Name of error", func() { Example("not found") })
 	Attribute("message", String, "Error message", func() {

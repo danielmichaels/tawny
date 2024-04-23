@@ -1,11 +1,11 @@
 -- ADMIN Team
 WITH new_team AS (
     INSERT INTO teams (uuid, name, personal_team)
-        VALUES ('team_000000000000', COALESCE('admin' || '_team', 'default_team'), true)
+        VALUES ('team_0000000', COALESCE('admin' || '_team', 'default_team'), true)
         RETURNING uuid, id),
      new_user AS (
          INSERT INTO users (uuid, name, email, password, current_team_id)
-             VALUES ('user_000000000000', 'admin', 'admin@tawny.internal', crypt('password', gen_salt('bf')),
+             VALUES ('user_0000000', 'admin', 'admin@tawny.internal', crypt('password', gen_salt('bf')),
                      (SELECT id FROM new_team))
              RETURNING uuid),
      new_user_team AS (
@@ -16,7 +16,7 @@ WITH new_team AS (
              RETURNING user_id, team_id),
      new_token AS (
          INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token)
-             SELECT 'user', new_user.uuid, 'default', 'key_000000000000'
+             SELECT 'user', new_user.uuid, 'default', 'key_0000000'
              FROM new_user
              RETURNING token)
 SELECT new_user.uuid AS user_id, new_team.uuid AS team_id, new_token.token AS personal_access_token
@@ -27,11 +27,11 @@ FROM new_user,
 -- User_1 Team
 WITH new_team AS (
     INSERT INTO teams (uuid, name, personal_team)
-        VALUES ('team_000000000001', COALESCE('user' || '_team', 'default_team'), true)
+        VALUES ('team_0000001', COALESCE('user' || '_team', 'default_team'), true)
         RETURNING uuid, id),
      new_user AS (
          INSERT INTO users (uuid, name, email, password, current_team_id)
-             VALUES ('user_000000000001', 'user', 'user@tawny.internal', crypt('password', gen_salt('bf')),
+             VALUES ('user_0000001', 'user', 'user@tawny.internal', crypt('password', gen_salt('bf')),
                      (SELECT id FROM new_team))
              RETURNING uuid),
      new_user_team AS (
@@ -42,7 +42,7 @@ WITH new_team AS (
              RETURNING user_id, team_id),
      new_token AS (
          INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token)
-             SELECT 'user', new_user.uuid, 'default', 'key_000000000001'
+             SELECT 'user', new_user.uuid, 'default', 'key_0000001'
              FROM new_user
              RETURNING token)
 SELECT new_user.uuid AS user_id, new_team.uuid AS team_id, new_token.token AS personal_access_token

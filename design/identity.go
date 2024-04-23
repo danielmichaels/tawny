@@ -18,7 +18,7 @@ var _ = Service("identity", func() {
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			Required("user", apiKeyName)
 		})
@@ -35,13 +35,13 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			Attribute("user_id", String, "UUID of the user", func() {
 				Pattern(userRx)
-				Example("user_123456789012")
+				Example("user_1234567")
 			})
 			APIKey(
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			Required("user_id", apiKeyName)
 		})
@@ -60,7 +60,7 @@ var _ = Service("identity", func() {
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			paginationPayload()
 			Required(apiKeyName)
@@ -83,7 +83,7 @@ var _ = Service("identity", func() {
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			Required("team", apiKeyName)
 		})
@@ -104,7 +104,7 @@ var _ = Service("identity", func() {
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			Required("user_id", "team_id", apiKeyName)
 		})
@@ -119,13 +119,13 @@ var _ = Service("identity", func() {
 	Method("removeTeamMember", func() {
 		Description("Remove a team member from a team")
 		Payload(func() {
-			Attribute("user_id", String, func() { Example("user_000000000000") })
-			Attribute("team_id", String, func() { Example("team_000000000000") })
+			Attribute("user_id", String, func() { Example("user_0000000") })
+			Attribute("team_id", String, func() { Example("team_0000000") })
 			APIKey(
 				apiKeyScheme,
 				apiKeyName,
 				String,
-				func() { Description("API key"); Example("key_000000000000") },
+				func() { Description("API key"); Example("key_0000000") },
 			)
 			Required("user_id", "team_id", apiKeyName)
 		})
@@ -158,7 +158,7 @@ var UserResult = ResultType("application/vnd.tawny.user", func() {
 	TypeName("UserResult")
 	Description("A single user")
 
-	Attribute("user_uuid", String, "User ID", func() { Example("user_123456789012") })
+	Attribute("user_uuid", String, "User ID", func() { Example("user_1234567") })
 	Attribute("name", String, "name", func() { Example("Daniel") })
 	Attribute("email", String, "Email", func() { Example("me@gmail.com") })
 	Attribute("role", String, "Role", func() { Example("admin") })
@@ -190,7 +190,7 @@ var TeamIn = Type("Team", func() {
 var TeamResult = ResultType("application/vnd.tawny.team", func() {
 	TypeName("Team")
 	Description("A single team")
-	Attribute("uuid", String, "Team ID", func() { Example("team_123456789012") })
+	Attribute("uuid", String, "Team ID", func() { Example("team_1234567") })
 	Attribute("name", String, "Name", func() { Example("Dream Team") })
 	Attribute("personal_team", Boolean, "personal_team", func() { Example(false) })
 	createdAndUpdateAtResult()
