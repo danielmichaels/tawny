@@ -131,7 +131,7 @@ var _ = Service("identity", func() {
 		})
 		Result(TeamResult)
 		HTTP(func() {
-			DELETE("/teams/{team_id}/{user_id}")
+			DELETE("/teams/{team_id}/users/{user_id}")
 			Response(StatusOK)
 			Header(apiKeyHeader)
 			commonResponses()
