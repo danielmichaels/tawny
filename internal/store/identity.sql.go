@@ -79,7 +79,7 @@ WITH new_team AS (
              RETURNING user_id, team_id),
      new_token AS (
          INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token)
-             SELECT 'user', new_user.uuid, 'default', ('key_' || generate_uid(12))
+             SELECT 'user', new_user.uuid, 'default', ('key_' || generate_uid(20))
              FROM new_user
              RETURNING token)
 SELECT new_user.uuid AS user_id, new_team.uuid AS team_id, new_token.token AS personal_access_token

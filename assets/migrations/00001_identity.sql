@@ -70,7 +70,7 @@ CREATE TABLE personal_access_tokens
 (
     id             BIGSERIAL PRIMARY KEY,
     tokenable_type VARCHAR(255)                NOT NULL,
-    tokenable_id   TEXT                        NOT NULL DEFAULT ('key_' || generate_uid(7)),
+    tokenable_id   TEXT                        NOT NULL DEFAULT ('key_' || generate_uid(20)),
     name           VARCHAR(255)                NOT NULL,
     token          VARCHAR(64)                 NOT NULL,
     abilities      TEXT                        NULL,

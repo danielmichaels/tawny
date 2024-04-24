@@ -150,13 +150,17 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 func (s *identitysrvc) AddTeamMember(ctx context.Context, payload *identity.AddTeamMemberPayload) (res *identity.Team, err error) {
 	//TODO implement me
 	// must be admin and should only be able to invite members
-	panic("implement me")
+	res = &identity.Team{}
+	s.logger.Print("identity.addTeamMember not implemented")
+	//merge this branch and then start on https://kanban.infra.ptco.rocks/task/17
+	return
 }
 
-func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.RemoveTeamMemberPayload) (res *identity.Team, err error) {
+func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.RemoveTeamMemberPayload) error {
 	//TODO implement me
 	// must be admin
-	panic("implement me")
+	s.logger.Print("identity.removeTeamMember not implemented")
+	return nil
 }
 
 func CalculateIdentityMetadata(totalRecords, page, pageSize int) *identity.PaginationMetadata {

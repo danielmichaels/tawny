@@ -17,7 +17,7 @@ import (
 const (
 	userRx            = "^user_[a-zA-Z0-9]{7}$"
 	teamRx            = "^team_[a-zA-Z0-9]{7}$"
-	keyRx             = "^key_[a-zA-Z0-9]{7}$"
+	keyRx             = "^key_[a-zA-Z0-9]{20}$"
 	apiKeyScheme      = "api_key"
 	apiKeyName        = "key"
 	apiKeyHeaderValue = "X-API-KEY"
