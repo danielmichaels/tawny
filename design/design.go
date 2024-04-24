@@ -33,7 +33,7 @@ var (
 // API describes the global properties of the API server.
 //
 // I think of this as the "headings" to a OpenAPI spec for lack of a better analogy
-var _ = API(fmt.Sprintf("%s", assets.AppName), func() {
+var _ = API(assets.AppName, func() {
 	Title(fmt.Sprintf("%s Service", assets.AppName))
 	Description("API service for tawny")
 	HTTP(func() {
@@ -53,11 +53,6 @@ var Origins = []string{
 	"/127.0.0.1:\\d+/",             // Dev
 	"/localhost:\\d+/",             // Dev
 	"/192.168.(\\d+).(\\d+):\\d+/", // Dev
-}
-
-func listParams() {
-	Param("page_size", Int32, "Number of results to display")
-	Param("page_number", Int32, "Results page number")
 }
 
 func commonErrors() {
@@ -114,11 +109,6 @@ func paginationPayload() {
 		Default(1)
 		Example(1)
 	})
-}
-
-// genURL joins two url strings together as a single valid URL path
-func genURL(base, endpoint string) string {
-	return fmt.Sprintf("%s/%s", base, endpoint)
 }
 
 var NotFound = Type("not-found", func() {

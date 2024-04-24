@@ -229,8 +229,8 @@ func handleHTTPServer(
 	// here apply to all the service endpoints.
 	var handler http.Handler = mux
 	{
-		handler = httpmdlwr.Log(adapter)(handler)
-		handler = httpmdlwr.RequestID()(handler)
+		handler = httpmdlwr.Log(adapter)(handler) //nolint:all
+		handler = httpmdlwr.RequestID()(handler)  //nolint:all
 	}
 
 	// Start HTTP server using default configuration, change the code to
