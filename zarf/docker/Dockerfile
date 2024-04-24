@@ -8,14 +8,14 @@ RUN corepack enable pnpm
 RUN mkdir -p /build
 WORKDIR /build
 
-COPY . .
+COPY ../.. .
 RUN ["task", "assets"]
 
 FROM golang:1.22-bookworm AS builder
 
 WORKDIR /build
 # only copy mod file for better caching
-COPY go.mod go.sum ./
+COPY ../../go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY --from=node ["/build/assets/static/css/theme.css", "/build/assets/static/css/theme.css"]
@@ -26,7 +26,7 @@ COPY --from=toolkit ["/usr/local/bin/task", "/usr/local/bin/task"]
 
 ENV CGO_ENABLED=1 GOOS=linux GOARCH=amd64
 
-COPY . .
+COPY ../.. .
 
 RUN ["task", "templgen"]
 RUN ["task", "gen"]
@@ -40,7 +40,7 @@ FROM debian:bookworm-slim
 WORKDIR /app
 
 COPY --from=toolkit ["/usr/local/bin/goose", "/usr/local/bin/goose"]
-COPY --from=builder ["/build/entrypoint", "/app/entrypoint"]
+COPY --from=builder ["/build/zarf/docker/entrypoint", "/app/entrypoint"]
 COPY --from=builder ["/build/assets/migrations", "/app/migrations"]
 COPY --from=builder ["/build/app", "/usr/bin/app"]
 

@@ -8,6 +8,7 @@ vars:
   DATABASE_TYPE: "postgres"
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL_MODE}
   DATABASE_CONTAINER_NAME: tawny-db
+  DOCKER_COMPOSE_LOCAL: ./zarf/docker/docker-compose.yml
 
   MP_NAME: tawny
   MP_IP: $(multipass info {{.MP_NAME}} --format json| jq -r '.info.{{.MP_NAME}}.ipv4[0]')
@@ -88,11 +89,11 @@ tasks:
   db:local:up:
     desc: Run a local database for development
     cmds:
-      - docker compose up tawny-db -d
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} up tawny-db -d
       - sleep 5
       - task: db:migration:up
       - task: db:local:seed
-      - docker compose logs -f
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} logs -f
 
   db:local:seed:
     desc: Seed data into the local development DB
@@ -104,7 +105,7 @@ tasks:
   db:local:down:
     desc: Stop the local database for development
     cmds:
-      - docker compose down tawny-db {{.CLI_ARGS}}
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} down tawny-db {{.CLI_ARGS}}
 
   db:migration:up:
     desc: Run migrations (all of them)
@@ -156,8 +157,8 @@ tasks:
   db:up:
     desc: Bring up the development server database container
     cmds:
-      - docker compose up -d
-      - docker compose logs -f
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} up -d
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} logs -f
   db:psql:
     desc: Drop into the `psql` shell
     cmds:
@@ -185,6 +186,7 @@ tasks:
     desc: Run linters and betteralign
     cmds:
       - betteralign -apply ./...
+      - golines -w .
       - golangci-lint run ./... {{.CLI_ARGS}}
 
   alpine:
