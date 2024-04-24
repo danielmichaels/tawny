@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	userRx            = "^user_[a-zA-Z0-9]{12}$"
-	teamRx            = "^team_[a-zA-Z0-9]{12}$"
-	keyRx             = "^key_[a-zA-Z0-9]{12}$"
+	userRx            = "^user_[a-zA-Z0-9]{7}$"
+	teamRx            = "^team_[a-zA-Z0-9]{7}$"
+	keyRx             = "^key_[a-zA-Z0-9]{20}$"
 	apiKeyScheme      = "api_key"
 	apiKeyName        = "key"
 	apiKeyHeaderValue = "X-API-KEY"
@@ -90,6 +90,32 @@ func commonCors() {
 	}
 }
 
+func createdAndUpdateAtResult() {
+	Attribute("created_at", String, "Created at", func() { Example("2024-04-18 01:18:43 +0000") })
+	Attribute("updated_at", String, "Updated at", func() { Example("2024-04-21 11:43:02 +0000") })
+}
+
+// PaginationQueryParams returns the current_page and page_size values
+func PaginationQueryParams(page, pageSize int) (int32, int32) {
+	return int32(page), int32((pageSize - 1) * page)
+}
+func paginationParams() {
+	Param("page_size", Int)
+	Param("page_number", Int)
+}
+func paginationPayload() {
+	Attribute("page_size", Int, func() {
+		Description("The maximum number of results to return.")
+		Default(20)
+		Example(20)
+	})
+	Attribute("page_number", Int, func() {
+		Description("The page number to view")
+		Default(1)
+		Example(1)
+	})
+}
+
 // genURL joins two url strings together as a single valid URL path
 func genURL(base, endpoint string) string {
 	return fmt.Sprintf("%s/%s", base, endpoint)
@@ -98,14 +124,14 @@ func genURL(base, endpoint string) string {
 var NotFound = Type("not-found", func() {
 	Description("not-found indicates the resource matching the id does not exist.")
 	Attribute("id", String, "ID of device", func() {
-		Example("resource_12345678")
+		Example("resource_1234567")
 	})
 	Attribute("name", String, "Name of error", func() { Example("not found") })
 	Attribute("message", String, "Error message", func() {
 		Example("bad request")
 	})
 	Attribute("detail", String, "Error details", func() {
-		Example("Failed to determine machine information. Cannot continue.")
+		Example("Resource not found")
 	})
 	Required("message", "detail", "name")
 
@@ -117,7 +143,7 @@ var BadRequest = Type("bad-request", func() {
 		Example("bad request")
 	})
 	Attribute("detail", String, "Error details", func() {
-		Example("Failed to determine machine information. Cannot continue.")
+		Example("Failed to validate information. Cannot continue.")
 	})
 	Required("message", "detail", "name")
 })

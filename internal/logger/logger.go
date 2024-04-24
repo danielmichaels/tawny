@@ -32,6 +32,17 @@ func New(serviceName string, isDebug, isConsole bool) *Logger {
 // Log is called by the log middleware to log HTTP requests key values
 func (logger *Logger) Log(keyvals ...interface{}) error {
 	fields := FormatFields(keyvals)
+	if status, ok := fields["status"].(int); ok {
+		s := status / 100
+		switch s {
+		case 4:
+			logger.Warn().Fields(fields).Msgf("HTTP Request")
+			return nil
+		case 5:
+			logger.Error().Fields(fields).Msgf("HTTP Request")
+			return nil
+		}
+	}
 	logger.Info().Fields(fields).Msgf("HTTP Request")
 	return nil
 }

@@ -1,11 +1,12 @@
 package webserver
 
 import (
+	"net/http"
+
 	assets "github.com/danielmichaels/tawny"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
-	"net/http"
 )
 
 func (app *Application) routes() http.Handler {

@@ -1,10 +1,11 @@
 package webserver
 
 import (
+	"net/http"
+
 	"github.com/danielmichaels/tawny/assets/static/view/pages"
 	"github.com/danielmichaels/tawny/internal/render"
 	chirender "github.com/go-chi/render"
-	"net/http"
 )
 
 func (app *Application) notFound(w http.ResponseWriter, r *http.Request) {

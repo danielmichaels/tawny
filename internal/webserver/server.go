@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/danielmichaels/tawny/internal/config"
-	svclogger "github.com/danielmichaels/tawny/internal/logger"
-	"github.com/danielmichaels/tawny/internal/store"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/danielmichaels/tawny/internal/config"
+	svclogger "github.com/danielmichaels/tawny/internal/logger"
+	"github.com/danielmichaels/tawny/internal/store"
 )
 
 type Application struct {
