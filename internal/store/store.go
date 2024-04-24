@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/danielmichaels/tawny/internal/config"
 	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"os"
-	"time"
 )
 
 func NewDatabasePool(ctx context.Context, cfg *config.Conf) (*pgxpool.Pool, error) {

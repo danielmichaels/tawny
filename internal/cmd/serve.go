@@ -3,10 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/danielmichaels/tawny/gen/identity"
-	"github.com/danielmichaels/tawny/internal/config"
-	"github.com/danielmichaels/tawny/internal/store"
-	"github.com/danielmichaels/tawny/internal/webserver"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +11,11 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/danielmichaels/tawny/gen/identity"
+	"github.com/danielmichaels/tawny/internal/config"
+	"github.com/danielmichaels/tawny/internal/store"
+	"github.com/danielmichaels/tawny/internal/webserver"
 
 	identitysvr "github.com/danielmichaels/tawny/gen/http/identity/server"
 	monitoringsvr "github.com/danielmichaels/tawny/gen/http/monitoring/server"

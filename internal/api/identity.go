@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"errors"
+	"math"
+
 	"github.com/danielmichaels/tawny/design"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
@@ -12,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"goa.design/goa/v3/security"
-	"math"
 )
 
 // identity service example implementation.
@@ -29,7 +30,11 @@ func NewIdentity(logger *logger.Logger, db *store.Queries) identity.Service {
 
 // APIKeyAuth implements the authorization logic for service "identity" for the
 // "api_key" security scheme.
-func (s *identitysrvc) APIKeyAuth(ctx context.Context, key string, scheme *security.APIKeyScheme) (context.Context, error) {
+func (s *identitysrvc) APIKeyAuth(
+	ctx context.Context,
+	key string,
+	scheme *security.APIKeyScheme,
+) (context.Context, error) {
 	ak := auth.NewApiKey()
 	ctx, err := ak.Validate(ctx, key, scheme, s.db)
 	if err != nil {
@@ -40,14 +45,20 @@ func (s *identitysrvc) APIKeyAuth(ctx context.Context, key string, scheme *secur
 }
 
 // Create a new user. This will also generate a new team for that user.
-func (s *identitysrvc) CreateUser(ctx context.Context, p *identity.CreateUserPayload) (res *identity.UserResult, err error) {
+func (s *identitysrvc) CreateUser(
+	ctx context.Context,
+	p *identity.CreateUserPayload,
+) (res *identity.UserResult, err error) {
 	res = &identity.UserResult{}
 	s.logger.Print("identity.createUser")
 	return
 }
 
 // Retrieve a single user. Can only retrieve users from an associated team.
-func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUserPayload) (res *identity.UserResult, err error) {
+func (s *identitysrvc) RetrieveUser(
+	ctx context.Context,
+	p *identity.RetrieveUserPayload,
+) (res *identity.UserResult, err error) {
 	ut := auth.CtxAuthInfo(ctx)
 	u, err := s.db.GetUserByID(ctx, store.GetUserByIDParams{
 		Uuid:   p.UserID,
@@ -72,7 +83,10 @@ func (s *identitysrvc) RetrieveUser(ctx context.Context, p *identity.RetrieveUse
 }
 
 // Retrieve all users that this user can see from associated teams.
-func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPayload) (res *identity.Users, err error) {
+func (s *identitysrvc) ListUsers(
+	ctx context.Context,
+	p *identity.ListUsersPayload,
+) (res *identity.Users, err error) {
 	ut := auth.CtxAuthInfo(ctx)
 	ps, pn := design.PaginationQueryParams(p.PageSize, p.PageNumber)
 	u, err := s.db.ListUsers(ctx, store.ListUsersParams{
@@ -106,7 +120,10 @@ func (s *identitysrvc) ListUsers(ctx context.Context, p *identity.ListUsersPaylo
 }
 
 // Create a new team
-func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPayload) (res *identity.Team, err error) {
+func (s *identitysrvc) CreateTeam(
+	ctx context.Context,
+	p *identity.CreateTeamPayload,
+) (res *identity.Team, err error) {
 	ut := auth.CtxAuthInfo(ctx)
 	t, err := s.db.CreateTeam(ctx, store.CreateTeamParams{
 		UserID: pgtype.Text{String: ut.UserUUID, Valid: true},
@@ -116,7 +133,9 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 		var pgErr *pgconn.PgError
 		switch {
 		case errors.As(err, &pgErr) && pgErr.Code == "P0001":
-			return nil, &identity.Unauthorized{Message: "user does not have permission to create team"}
+			return nil, &identity.Unauthorized{
+				Message: "user does not have permission to create team",
+			}
 		case errors.As(err, &pgErr) && pgErr.Code == "23505":
 			s.logger.Error().Err(err).Msg("error creating team")
 			return nil, &identity.BadRequest{
@@ -147,7 +166,10 @@ func (s *identitysrvc) CreateTeam(ctx context.Context, p *identity.CreateTeamPay
 	}, nil
 }
 
-func (s *identitysrvc) AddTeamMember(ctx context.Context, payload *identity.AddTeamMemberPayload) (res *identity.Team, err error) {
+func (s *identitysrvc) AddTeamMember(
+	ctx context.Context,
+	payload *identity.AddTeamMemberPayload,
+) (res *identity.Team, err error) {
 	//TODO implement me
 	// must be admin and should only be able to invite members
 	res = &identity.Team{}
@@ -156,7 +178,10 @@ func (s *identitysrvc) AddTeamMember(ctx context.Context, payload *identity.AddT
 	return
 }
 
-func (s *identitysrvc) RemoveTeamMember(ctx context.Context, payload *identity.RemoveTeamMemberPayload) error {
+func (s *identitysrvc) RemoveTeamMember(
+	ctx context.Context,
+	payload *identity.RemoveTeamMemberPayload,
+) error {
 	//TODO implement me
 	// must be admin
 	s.logger.Print("identity.removeTeamMember not implemented")

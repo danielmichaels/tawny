@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+
 	"github.com/danielmichaels/tawny/internal/store"
 
 	"goa.design/goa/v3/security"
