@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tawny-web
+  namespace: tawny
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: tawny-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: tawny-web
+    spec:
+      containers:
+        - image: danielmichaels/tawny
+          imagePullPolicy: Always
+          name: tawny-web
+          command:
+            - "/app/entrypoint"
+            - "--web"
+          ports:
+            - containerPort: 9091
+              name: tawny-web
+              protocol: TCP
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresHost
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresUser
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresPort
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresDB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-tawny
+                  key: password
+            - name: POSTGRES_SSL_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresSSLMode
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: admin-password
+                  name: admin-password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tawny-api
+  namespace: tawny
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: tawny-api
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: tawny-api
+    spec:
+      containers:
+        - image: danielmichaels/tawny
+          imagePullPolicy: Always
+          name: tawny-api
+          command:
+            - "/app/entrypoint"
+            - "--api"
+          ports:
+            - containerPort: 9091
+              name: tawny-web
+              protocol: TCP
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresHost
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresUser
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresPort
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresDB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-tawny
+                  key: password
+            - name: POSTGRES_SSL_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: tawny-cm
+                  key: postgresSSLMode
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: admin-password
+                  name: admin-password

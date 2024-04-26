@@ -62,9 +62,9 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 			dbx := store.New(db)
 			// Initialise admin user on first boot; this can be updated after the fact
 			// todo: find a better way to do this
-			err = dbx.BoostrapAdminIfNotExists(ctx, logger)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("failed to boostrap admin user")
+
+			if exists, err := dbx.DoesAdminExist(ctx); !exists || err != nil {
+				logger.Warn().Msg("admin user does not exist")
 			}
 
 			// Initialize the services.
@@ -229,8 +229,8 @@ func handleHTTPServer(
 	// here apply to all the service endpoints.
 	var handler http.Handler = mux
 	{
-		handler = httpmdlwr.Log(adapter)(handler)
-		handler = httpmdlwr.RequestID()(handler)
+		handler = httpmdlwr.Log(adapter)(handler) //nolint:all
+		handler = httpmdlwr.RequestID()(handler)  //nolint:all
 	}
 
 	// Start HTTP server using default configuration, change the code to

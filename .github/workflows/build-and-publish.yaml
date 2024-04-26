@@ -42,13 +42,14 @@ jobs:
         uses: docker/build-push-action@master
         with:
           context: .
-          file: Dockerfile
+          file: ./zarf/docker/Dockerfile
           load: true
           tags: ${{ env.TEST_TAG }}
       - name: Build
         uses: docker/build-push-action@master
         with:
           context: .
+          file: ./zarf/docker/Dockerfile
           push: false
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
@@ -87,6 +88,7 @@ jobs:
         uses: docker/build-push-action@master
         with:
           context: .
+          file: ./zarf/docker/Dockerfile
           push: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max

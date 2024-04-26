@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tawny-web-svc
+  namespace: tawny
+spec:
+  selector:
+    app: tawny-web
+  ports:
+    - protocol: TCP
+      port: 9091
+      targetPort: 9091
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tawny-api-svc
+  namespace: tawny
+spec:
+  selector:
+    app: tawny-api
+  ports:
+    - protocol: TCP
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP

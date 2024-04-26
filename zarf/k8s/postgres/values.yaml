@@ -1,0 +1,5 @@
+nameOverride: tawny
+auth:
+  enablePostgresUser: true
+  username: "tawny-user"
+  database: "tawny-db"
