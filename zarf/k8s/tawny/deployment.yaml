@@ -96,8 +96,7 @@ spec:
           imagePullPolicy: Always
           name: tawny-api
           command:
-            - "app"
-            - "serve"
+            - "entrypoint"
             - "--api"
           ports:
             - containerPort: 9091
