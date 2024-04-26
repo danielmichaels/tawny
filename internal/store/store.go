@@ -2,15 +2,12 @@ package store
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/danielmichaels/tawny/internal/config"
-	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -45,41 +42,4 @@ func NewDatabasePool(ctx context.Context, cfg *config.Conf) (*pgxpool.Pool, erro
 	c.MaxConnLifetime = 1 * time.Hour
 	c.MaxConnIdleTime = 30 * time.Second
 	return pgxpool.NewWithConfig(ctx, c)
-}
-
-func (store *Queries) BoostrapAdminIfNotExists(ctx context.Context, logger *logger.Logger) error {
-	exists, err := store.DoesAdminExist(ctx)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	logger.Info().Msg("admin user does not exist, creating...")
-	pw := os.Getenv("ADMIN_PASSWORD")
-	if pw == "" {
-		return errors.New("ADMIN_PASSWORD environment variable not set")
-	}
-	hpw, err := HashPassword(pw)
-	if err != nil {
-		return err
-	}
-	admin, err := store.CreateUserWithNewTeam(ctx, CreateUserWithNewTeamParams{
-		Column1:  pgtype.Text{String: "admin", Valid: true},
-		Name:     pgtype.Text{String: "admin", Valid: true},
-		Email:    pgtype.Text{String: "admin@tawny.internal", Valid: true},
-		Password: pgtype.Text{String: hpw, Valid: true},
-	})
-	if err != nil {
-		return err
-	}
-	err = store.UpdateUserRole(ctx, UpdateUserRoleParams{
-		Role:  UserRoleAdmin,
-		Token: admin.PersonalAccessToken,
-	})
-	if err != nil {
-		return err
-	}
-	logger.Info().Interface("admin", admin).Msg("admin created")
-	return nil
 }

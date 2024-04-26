@@ -89,8 +89,7 @@ tasks:
   db:local:up:
     desc: Run a local database for development
     cmds:
-      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} up tawny-db -d
-      - sleep 5
+      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} up tawny-db --wait
       - task: db:migration:up
       - task: db:local:seed
       - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} logs -f
@@ -154,11 +153,6 @@ tasks:
     cmds:
       - docker exec -it {{.TEST_DB_CONTAINER_NAME}} psql {{.DATABASE_URL}}
 
-  db:up:
-    desc: Bring up the development server database container
-    cmds:
-      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} up -d
-      - docker compose -f {{.DOCKER_COMPOSE_LOCAL}} logs -f
   db:psql:
     desc: Drop into the `psql` shell
     cmds:
