@@ -95,9 +95,9 @@ install_tawny() {
   kubectl apply -f "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/namespace.yaml" || true
   helm upgrade --install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
     --namespace tawny \
-    --values "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/postgres/values.yaml"
+    --values "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/postgres/values.yaml" || true
   # add a wait for
-  kubectl create secret generic admin-password --from-literal="${ADMIN_PASSWORD}" --namespace $REPO || true
+  kubectl create secret generic admin-password --from-literal="admin-password=${ADMIN_PASSWORD}" --namespace $REPO || true
 
   manifests=("configmap" "deployment" "ingress" "service")
 
