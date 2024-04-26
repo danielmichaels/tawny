@@ -2,8 +2,8 @@
 set -e -x -o pipefail
 
 ADMIN_PASSWORD="${ADMIN_PASSWORD}"
-export OWNER="danielmichaels"
-export REPO="tawny"
+OWNER="danielmichaels"
+REPO="tawny"
 export ARKADE=/usr/local/bin/arkade
 # When running as a startup script (cloud-init), the HOME variable is not always set.
 # As it is required for arkade to properly download tools,
@@ -13,13 +13,13 @@ if [ -z "${HOME}" ]; then
 fi
 
 K3S_VERSION="v1.29.3+k3s1"
-
-echo "Finding latest version from GitHub"
-VERSION=$(curl -sI https://github.com/$OWNER/$REPO/releases/latest | grep -i "location:" | awk -F"/" '{ printf "%s", $NF }' | tr -d '\r')
+echo "Finding version from GitHub"
+RELEASE_VERSION=$(curl -sI https://github.com/$OWNER/$REPO/releases/latest | grep -i "location:" | awk -F"/" '{ printf "%s", $NF }' | tr -d '\r')
+VERSION="${VERSION:-$RELEASE_VERSION}"
 echo "$VERSION"
 
 if [ ! "$VERSION" ]; then
-  echo "Failed while attempting to get latest version"
+  echo "Failed while attempting to get version"
   exit 1
 fi
 
@@ -67,6 +67,7 @@ install_required_packages() {
 install_arkade() {
   curl -sLS https://get.arkade.dev | $SUDO sh
   arkade --help
+  arkade get helm k9s kubectx kubens
   add_arkade_to_bash
 }
 
@@ -91,17 +92,17 @@ make_directories() {
 
 install_tawny() {
   echo "download manifests"
-  kubectl apply -f "https://raw.githubusercontent.com/danielmichaels/tawny/$VERSION/zarf/k8s/namespace.yaml" || true
-  helm install tawny oci://registry-1.docker.io/bitnamicharts/postgresql \
+  kubectl apply -f "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/namespace.yaml" || true
+  helm upgrade --install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
     --namespace tawny \
-    --values "https://raw.githubusercontent.com/danielmichaels/tawny/$VERSION/zarf/k8s/postgres/values.yaml"
+    --values "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/postgres/values.yaml"
   # add a wait for
-  kubectl create secret generic admin-password --from-literal="${ADMIN_PASSWORD}" || true
+  kubectl create secret generic admin-password --from-literal="${ADMIN_PASSWORD}" --namespace $REPO || true
 
   manifests=("configmap" "deployment" "ingress" "service")
 
   for manifest in "${manifests[@]}"; do
-    kubectl apply -f "https://raw.githubusercontent.com/danielmichaels/tawny/$VERSION/zarf/k8s/$REPO/$manifest.yaml"
+    kubectl apply -f "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/$REPO/$manifest.yaml"
   done
 }
 
