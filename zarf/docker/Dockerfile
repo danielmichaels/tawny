@@ -48,4 +48,4 @@ RUN apt-get update && apt-get install ca-certificates curl -y
 
 # ensures that migrations are run using the embedded files
 ENV DOCKER=1
-ENTRYPOINT ["app", "serve"]
+ENTRYPOINT ["/app/entrypoint"]

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tawny-cm
+  namespace: tawny
+data:
+  postgresHost: "postgres-tawny.tawny.svc.cluster.local"
+  postgresUser: "tawny-user"
+  postgresPort: "5432"
+  postgresDB: "tawny-db"
+  postgresSSLMode: "disable"
