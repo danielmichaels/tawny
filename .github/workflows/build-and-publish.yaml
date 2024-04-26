@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@master
         with:
           context: .
-          file: Dockerfile
+          file: ./zarf/docker/Dockerfile
           load: true
           tags: ${{ env.TEST_TAG }}
       - name: Build
