@@ -8,7 +8,7 @@ spec:
     - web
   routes:
     - kind: Rule
-      match: Host(`tawny.k8s.lcl`) && PathPrefix(`/`)
+      match: Host(`tawny.internal`) && PathPrefix(`/`)
       services:
         - kind: Service
           name: tawny-web-svc
@@ -25,7 +25,7 @@ spec:
     - web
   routes:
     - kind: Rule
-      match: Host(`api.k8s.lcl`)
+      match: Host(`api.tawny.internal`)
       services:
         - kind: Service
           passHostHeader: true

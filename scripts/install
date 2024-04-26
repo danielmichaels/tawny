@@ -90,6 +90,11 @@ make_directories() {
   $SUDO mkdir -p /var/tawny/{source,data}
 }
 
+etc_hosts() {
+  $SUDO cp /etc/hosts /etc/hosts.bak
+  echo "127.0.0.1 api.tawny.internal tawny.internal" >> /etc/hosts
+}
+
 install_tawny() {
   echo "download manifests"
   kubectl apply -f "https://raw.githubusercontent.com/$OWNER/$REPO/$VERSION/zarf/k8s/namespace.yaml" || true
@@ -120,4 +125,5 @@ install_arkade
 install_k3s
 make_directories
 install_tawny
+etc_hosts
 printer
