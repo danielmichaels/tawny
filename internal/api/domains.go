@@ -5,6 +5,7 @@ import (
 	"github.com/danielmichaels/tawny/gen/domains"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
+	"github.com/danielmichaels/tawny/internal/k8sclient"
 	"github.com/danielmichaels/tawny/internal/logger"
 	"github.com/danielmichaels/tawny/internal/store"
 	"goa.design/goa/v3/security"
@@ -13,13 +14,14 @@ import (
 // domains service example implementation.
 // The example methods log the requests and return zero values.
 type domainssrvc struct {
-	logger *logger.Logger
-	db     *store.Queries
+	logger  *logger.Logger
+	db      *store.Queries
+	kclient *k8sclient.K8sClient
 }
 
 // NewDomains returns the domains service implementation.
-func NewDomains(logger *logger.Logger, db *store.Queries) domains.Service {
-	return &domainssrvc{logger, db}
+func NewDomains(logger *logger.Logger, db *store.Queries, kclient *k8sclient.K8sClient) domains.Service {
+	return &domainssrvc{logger, db, kclient}
 }
 
 // APIKeyAuth implements the authorization logic for service "identity" for the
@@ -41,7 +43,12 @@ func (s *domainssrvc) APIKeyAuth(
 // List all domains which this user has access to manage
 func (s *domainssrvc) ListDomains(ctx context.Context, p *domains.ListDomainsPayload) (res *domains.DomainsResult, err error) {
 	res = &domains.DomainsResult{}
-	s.logger.Info().Msg("domains.listDomains")
-	s.logger.Info().Msg("domains.listDomains")
+	pods, err := s.kclient.ListDomains(ctx, "tawny")
+	if err != nil {
+		return nil, err
+	}
+	for _, pod := range pods.Items {
+		s.logger.Info().Msgf("Pod: %v", pod.GetName())
+	}
 	return
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/danielmichaels/tawny/gen/domains"
+	"github.com/danielmichaels/tawny/internal/k8sclient"
 	"net/http"
 	"net/url"
 	"os"
@@ -44,10 +45,12 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.AppConfig()
 			var (
-				logger *svclogger.Logger
+				logger  *svclogger.Logger
+				kclient *k8sclient.K8sClient
 			)
 			{
 				logger = svclogger.New("tawny", debugF, isConsole)
+				kclient = k8sclient.NewK8sClient(debugF, isConsole)
 			}
 			logger.Info().Int("GOMAXPROCS", runtime.GOMAXPROCS(0)).Send()
 
@@ -80,7 +83,7 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 				monitoringSvc = tawny.NewMonitoring(logger)
 				openapiSvc = tawny.NewOpenapi(logger)
 				identitySvc = tawny.NewIdentity(logger, dbx)
-				domainsSvc = tawny.NewDomains(logger, dbx)
+				domainsSvc = tawny.NewDomains(logger, dbx, kclient)
 			}
 
 			// Wrap the services in endpoints that can be invoked from other services
