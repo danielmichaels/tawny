@@ -3,13 +3,18 @@ kind: Deployment
 metadata:
   name: tawny-web
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web
+    tawny.sh/component: tawny-web-deployment
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   progressDeadlineSeconds: 600
   replicas: 2
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: tawny-web
+      tawny.sh/name: tawny-web
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,7 +23,10 @@ spec:
   template:
     metadata:
       labels:
-        app: tawny-web
+        tawny.sh/name: tawny-web
+        tawny.sh/component: tawny-web-pod
+        tawny.sh/part-of: tawny-core
+        tawny.sh/managed-by: tawny-core
     spec:
       containers:
         - image: danielmichaels/tawny
@@ -73,13 +81,18 @@ kind: Deployment
 metadata:
   name: tawny-api
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-api
+    tawny.sh/component: tawny-api-deployment
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   progressDeadlineSeconds: 600
   replicas: 2
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: tawny-api
+      tawny.sh/name: tawny-api
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -88,7 +101,10 @@ spec:
   template:
     metadata:
       labels:
-        app: tawny-api
+        tawny.sh/name: tawny-api
+        tawny.sh/component: tawny-api-pod
+        tawny.sh/part-of: tawny-core
+        tawny.sh/managed-by: tawny-core
     spec:
       containers:
         - image: danielmichaels/tawny

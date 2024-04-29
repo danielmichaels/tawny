@@ -3,3 +3,8 @@ auth:
   enablePostgresUser: true
   username: "tawny-user"
   database: "tawny-db"
+commonLabels:
+  tawny.sh/name: tawny-postgres
+  tawny.sh/component: tawny-postgres
+  tawny.sh/part-of: tawny-core
+  tawny.sh/managed-by: tawny-core

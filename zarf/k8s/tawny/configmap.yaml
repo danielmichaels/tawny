@@ -3,6 +3,11 @@ kind: ConfigMap
 metadata:
   name: tawny-cm
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-cm
+    tawny.sh/component: tawny-configmap
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 data:
   postgresHost: "postgres-tawny.tawny.svc.cluster.local"
   postgresUser: "tawny-user"

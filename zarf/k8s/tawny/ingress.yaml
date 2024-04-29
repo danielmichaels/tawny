@@ -3,6 +3,11 @@ kind: IngressRoute
 metadata:
   name: tawny-web-ingress
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web-ingress
+    tawny.sh/component: tawny-ingress
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   entryPoints:
     - web
@@ -20,6 +25,11 @@ kind: IngressRoute
 metadata:
   name: tawny-api-ingress
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web-ingress
+    tawny.sh/component: tawny-ingress
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   entryPoints:
     - web
