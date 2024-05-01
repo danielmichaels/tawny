@@ -83,7 +83,9 @@ install_k3s() {
       sh -
   export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
   arkade install traefik2 --dashboard --wait
-  arkade install cert-manager --wait
+  arkade install cert-manager \
+    --set 'extraArgs={--dns01-recursive-nameservers-only,--dns01-recursive-nameservers=8.8.8.8:53\,1.1.1.1:53}' \
+    --wait
 }
 
 make_directories() {
@@ -92,7 +94,7 @@ make_directories() {
 
 etc_hosts() {
   $SUDO cp /etc/hosts /etc/hosts.bak
-  echo "127.0.0.1 api.tawny.internal tawny.internal" >> /etc/hosts
+  echo "127.0.0.1 api.tawny.internal tawny.internal" >>/etc/hosts
 }
 
 install_tawny() {
