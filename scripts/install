@@ -83,8 +83,12 @@ install_k3s() {
       sh -
   export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
   arkade install traefik2 --dashboard --wait
+  # ensure we're using public DNS for external DNS resolution during DNS01
+  # podDnsConfig/Policy replaces host DNS with custom resolvers. DNS01 may not resolve without
+  # pining dns01-recursive-nameservers
   arkade install cert-manager \
     --set 'extraArgs={--dns01-recursive-nameservers-only,--dns01-recursive-nameservers=8.8.8.8:53\,1.1.1.1:53}' \
+    --set podDnsPolicy=None --set 'podDnsConfig.nameservers={1.1.1.1,8.8.8.8}' \
     --wait
 }
 
