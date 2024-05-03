@@ -35,10 +35,27 @@ spec:
     - web
   routes:
     - kind: Rule
-      match: Host(`api.tawny.internal`)
+      match: Host(`tawny.internal`) && PathPrefix(`/api`)
       services:
         - kind: Service
           passHostHeader: true
           name: tawny-api-svc
           namespace: tawny
           port: 9090
+      middlewares:
+        - name: tawny-api-stripprefix
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: tawny-api-stripprefix
+  namespace: tawny
+  labels:
+    tawny.sh/name: tawny-api-stripprefix-middleware
+    tawny.sh/component: tawny-middleware
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
