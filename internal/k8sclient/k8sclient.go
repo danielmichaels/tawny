@@ -14,6 +14,19 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const (
+	LetsEncryptStaging      = "https://acme-staging-v02.api.letsencrypt.org/directory"
+	DefaultIngressRouteName = "ingressroute"
+)
+
+var (
+	DefaultNamespace      = assets.AppName
+	DefaultCertName       = fmt.Sprintf("%s-root-domain", assets.AppName)
+	DefaultClusterIssuer  = fmt.Sprintf("%s-clusterissuer", assets.AppName)
+	DefaultCertSecretName = "%s-cert-secret"
+	DefaultServiceName    = "%s-%s-svc"
+)
+
 type K8sClient struct {
 	DynamicClient *dynamic.DynamicClient
 	Client        *kubernetes.Clientset
