@@ -98,7 +98,7 @@ make_directories() {
 
 etc_hosts() {
   $SUDO cp /etc/hosts /etc/hosts.bak
-  echo "127.0.0.1 api.tawny.internal tawny.internal" >>/etc/hosts
+  echo "127.0.0.1 tawny.internal" >>/etc/hosts
 }
 
 install_tawny() {

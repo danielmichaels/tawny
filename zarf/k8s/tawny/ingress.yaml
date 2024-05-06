@@ -14,6 +14,7 @@ spec:
   routes:
     - kind: Rule
       match: Host(`tawny.internal`) && PathPrefix(`/`)
+      priority: 98
       services:
         - kind: Service
           name: tawny-web-svc
@@ -36,6 +37,7 @@ spec:
   routes:
     - kind: Rule
       match: Host(`tawny.internal`) && PathPrefix(`/api`)
+      priority: 100
       services:
         - kind: Service
           passHostHeader: true
@@ -61,6 +63,7 @@ spec:
   routes:
     - kind: Rule
       match: Host(`tawny.internal`) && PathPrefix(`/`)
+      priority: 99
       services:
         - kind: Service
           name: tawny-web-svc
@@ -83,6 +86,7 @@ spec:
   routes:
     - kind: Rule
       match: Host(`tawny.internal`) && PathPrefix(`/api`)
+      priority: 101
       services:
         - kind: Service
           passHostHeader: true
