@@ -1,11 +1,11 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: tawny-web-ingress
+  name: tawny-web-web-ingressroute
   namespace: tawny
   labels:
-    tawny.sh/name: tawny-web-ingress
-    tawny.sh/component: tawny-ingress
+    tawny.sh/name: tawny-web-ingressroute
+    tawny.sh/component: tawny-ingressroute
     tawny.sh/part-of: tawny-core
     tawny.sh/managed-by: tawny-core
 spec:
@@ -23,16 +23,63 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: tawny-api-ingress
+  name: tawny-api-web-ingressroute
   namespace: tawny
   labels:
-    tawny.sh/name: tawny-web-ingress
-    tawny.sh/component: tawny-ingress
+    tawny.sh/name: tawny-web-ingressroute
+    tawny.sh/component: tawny-ingressroute
     tawny.sh/part-of: tawny-core
     tawny.sh/managed-by: tawny-core
 spec:
   entryPoints:
     - web
+  routes:
+    - kind: Rule
+      match: Host(`tawny.internal`) && PathPrefix(`/api`)
+      services:
+        - kind: Service
+          passHostHeader: true
+          name: tawny-api-svc
+          namespace: tawny
+          port: 9090
+      middlewares:
+        - name: tawny-api-stripprefix
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: tawny-web-websecure-ingressroute
+  namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web-websecure-ingressroute
+    tawny.sh/component: tawny-ingressroute
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`tawny.internal`) && PathPrefix(`/`)
+      services:
+        - kind: Service
+          name: tawny-web-svc
+          namespace: tawny
+          port: 9091
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: tawny-api-websecure-ingressroute
+  namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web-websecure-ingressroute
+    tawny.sh/component: tawny-ingressroute
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
+spec:
+  entryPoints:
+    - websecure
   routes:
     - kind: Rule
       match: Host(`tawny.internal`) && PathPrefix(`/api`)

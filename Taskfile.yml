@@ -44,29 +44,28 @@ tasks:
   k3s:up:
     desc: Bootstrap the local k3s cluster
     cmds:
-      - |
-        kubectl create secret generic admin-password \
-        --from-literal="admin-password=${ADMIN_PASSWORD:-password}" \
-        --namespace {{.APP_NAME}} || true
       - kubectl create ns tawny || true
       - arkade install traefik2 --dashboard --wait
       - |
         helm upgrade --install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
         --namespace tawny \
-        --values ./zarf/k8s/postgres/values.yaml || true
-        # add a wait for
+        --values ./zarf/k8s/postgres/values.yaml \
+        --wait || true
       - |
         arkade install cert-manager \
         --set 'extraArgs={--dns01-recursive-nameservers-only,--dns01-recursive-nameservers=8.8.8.8:53\,1.1.1.1:53}' \
         --set podDnsPolicy=None --set 'podDnsConfig.nameservers={1.1.1.1,8.8.8.8}' \
         --wait
       - |
-        manifests=$(ls ./zarf/k8s/tawny)
-        for manifest in "${manifests[@]}"; do
-          kubectl apply -f ./zarf/k8s/tawny/$manifest
-        done
-      - |
+        kubectl create secret generic admin-password \
+        --from-literal="admin-password=${ADMIN_PASSWORD:-password}" \
+        --namespace {{.APP_NAME}} || true
         kubectl create secret generic cf-token-secret -n cert-manager --from-literal=$CF_TOKEN
+      - |
+        manifests=("configmap" "deployment" "ingress" "service")
+        for manifest in "${manifests[@]}"; do
+          kubectl apply -f ./zarf/k8s/tawny/$manifest.yaml
+        done
 
   k3s:destroy:
     desc: Destroy the k3s cluster
