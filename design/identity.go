@@ -14,12 +14,7 @@ var _ = Service("identity", func() {
 		Description("Create a new user. This will also generate a new team for that user.")
 		Payload(func() {
 			Attribute("user", UserIn)
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user", apiKeyName)
 		})
 		Result(UserResult)
@@ -56,12 +51,7 @@ var _ = Service("identity", func() {
 	Method("listUsers", func() {
 		Description("Retrieve all users that this user can see from associated teams.")
 		Payload(func() {
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			paginationPayload()
 			Required(apiKeyName)
 		})
@@ -79,12 +69,7 @@ var _ = Service("identity", func() {
 		Description("Create a new team")
 		Payload(func() {
 			Attribute("team", TeamIn)
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("team", apiKeyName)
 		})
 		Result(TeamResult)
@@ -100,12 +85,7 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			Attribute("user_id", String, func() { Example("user_0000000"); Pattern(userRx) })
 			Attribute("team_id", String, func() { Example("team_0000000"); Pattern(teamRx) })
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user_id", "team_id", apiKeyName)
 		})
 		Result(TeamResult)
@@ -121,12 +101,7 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			Attribute("user_id", String, func() { Example("user_0000000"); Pattern(userRx) })
 			Attribute("team_id", String, func() { Example("team_0000000"); Pattern(teamRx) })
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user_id", "team_id", apiKeyName)
 		})
 		Result(Empty)
@@ -139,14 +114,6 @@ var _ = Service("identity", func() {
 	})
 })
 
-var PaginationMetadata = Type("PaginationMetadata", func() {
-	Attribute("total", Int32, func() { Example(25) })
-	Attribute("current_page", Int32, func() { Example(1) })
-	Attribute("first_page", Int32, func() { Example(1) })
-	Attribute("last_page", Int32, func() { Example(10) })
-	Attribute("page_size", Int32, func() { Example(20) })
-	Required("total", "page_size", "first_page", "current_page", "last_page")
-})
 var UserIn = Type("User", func() {
 	Description("User object")
 	Attribute("name", String, "Name of the user", func() { Example("Daniel") })

@@ -4,12 +4,14 @@ dotenv:
   - .env
 
 vars:
+  APP_NAME: tawny
   DESIGN: github.com/danielmichaels/tawny/design
   DATABASE_TYPE: "postgres"
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL_MODE}
   DATABASE_CONTAINER_NAME: tawny-db
   DOCKER_COMPOSE_LOCAL: ./zarf/docker/docker-compose.yml
 
+  DEV_TUNNEL: tawny-dev
   MP_NAME: tawny
   MP_IP: $(multipass info {{.MP_NAME}} --format json| jq -r '.info.{{.MP_NAME}}.ipv4[0]')
 
@@ -34,12 +36,41 @@ tasks:
     cmds:
       - air -- --console --web {{.CLI_ARGS}}
 
-  k3s:up:
+  k3s:install:
     desc: Create a local k3s server
     cmds:
       - curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable traefik" sh -
+      - task: k3s:up
+  k3s:up:
+    desc: Bootstrap the local k3s cluster
+    cmds:
+      - kubectl create ns tawny || true
       - arkade install traefik2 --dashboard --wait
-      - arkade install cert-manager --wait
+      - |
+        helm upgrade --install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
+        --namespace tawny \
+        --values ./zarf/k8s/postgres/values.yaml \
+        --wait || true
+      - |
+        arkade install cert-manager \
+        --set 'extraArgs={--dns01-recursive-nameservers-only,--dns01-recursive-nameservers=8.8.8.8:53\,1.1.1.1:53}' \
+        --set podDnsPolicy=None --set 'podDnsConfig.nameservers={1.1.1.1,8.8.8.8}' \
+        --wait
+      - |
+        kubectl create secret generic admin-password \
+        --from-literal="admin-password=${ADMIN_PASSWORD:-password}" \
+        --namespace {{.APP_NAME}} || true
+        kubectl create secret generic cf-token-secret -n cert-manager --from-literal=$CF_TOKEN
+      - |
+        manifests=("configmap" "deployment" "ingress" "service")
+        for manifest in "${manifests[@]}"; do
+          kubectl apply -f ./zarf/k8s/tawny/$manifest.yaml
+        done
+
+  k3s:destroy:
+    desc: Destroy the k3s cluster
+    cmds:
+      - k3s-uninstall.sh
 
   tidy:
     desc: go mod tidy

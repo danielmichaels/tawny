@@ -3,9 +3,14 @@ kind: Service
 metadata:
   name: tawny-web-svc
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-web
+    tawny.sh/component: tawny-web-svc
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   selector:
-    app: tawny-web
+    tawny.sh/name: tawny-web
   ports:
     - protocol: TCP
       port: 9091
@@ -17,9 +22,14 @@ kind: Service
 metadata:
   name: tawny-api-svc
   namespace: tawny
+  labels:
+    tawny.sh/name: tawny-api
+    tawny.sh/component: tawny-api-svc
+    tawny.sh/part-of: tawny-core
+    tawny.sh/managed-by: tawny-core
 spec:
   selector:
-    app: tawny-api
+    tawny.sh/name: tawny-api
   ports:
     - protocol: TCP
       port: 9090

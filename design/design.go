@@ -110,6 +110,23 @@ func paginationPayload() {
 		Example(1)
 	})
 }
+func apiKeyAuth() {
+	APIKey(
+		apiKeyScheme,
+		apiKeyName,
+		String,
+		func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
+	)
+}
+
+var PaginationMetadata = Type("PaginationMetadata", func() {
+	Attribute("total", Int32, func() { Example(25) })
+	Attribute("current_page", Int32, func() { Example(1) })
+	Attribute("first_page", Int32, func() { Example(1) })
+	Attribute("last_page", Int32, func() { Example(10) })
+	Attribute("page_size", Int32, func() { Example(20) })
+	Required("total", "page_size", "first_page", "current_page", "last_page")
+})
 
 var NotFound = Type("not-found", func() {
 	Description("not-found indicates the resource matching the id does not exist.")

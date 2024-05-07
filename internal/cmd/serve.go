@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/danielmichaels/tawny/gen/domains"
+	"github.com/danielmichaels/tawny/internal/k8sclient"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"github.com/danielmichaels/tawny/internal/store"
 	"github.com/danielmichaels/tawny/internal/webserver"
 
+	domainsvr "github.com/danielmichaels/tawny/gen/http/domains/server"
 	identitysvr "github.com/danielmichaels/tawny/gen/http/identity/server"
 	monitoringsvr "github.com/danielmichaels/tawny/gen/http/monitoring/server"
 	openapisvr "github.com/danielmichaels/tawny/gen/http/openapi/server"
@@ -42,10 +45,12 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.AppConfig()
 			var (
-				logger *svclogger.Logger
+				logger  *svclogger.Logger
+				kclient *k8sclient.K8sClient
 			)
 			{
 				logger = svclogger.New("tawny", debugF, isConsole)
+				kclient = k8sclient.NewK8sClient(debugF, isConsole)
 			}
 			logger.Info().Int("GOMAXPROCS", runtime.GOMAXPROCS(0)).Send()
 
@@ -72,11 +77,13 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 				monitoringSvc monitoring.Service
 				openapiSvc    openapi.Service
 				identitySvc   identity.Service
+				domainsSvc    domains.Service
 			)
 			{
 				monitoringSvc = tawny.NewMonitoring(logger)
 				openapiSvc = tawny.NewOpenapi(logger)
 				identitySvc = tawny.NewIdentity(logger, dbx)
+				domainsSvc = tawny.NewDomains(logger, dbx, kclient)
 			}
 
 			// Wrap the services in endpoints that can be invoked from other services
@@ -85,11 +92,13 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 				monitoringEndpoints *monitoring.Endpoints
 				openapiEndpoints    *openapi.Endpoints
 				identityEndpoints   *identity.Endpoints
+				domainEndpoints     *domains.Endpoints
 			)
 			{
 				monitoringEndpoints = monitoring.NewEndpoints(monitoringSvc)
 				openapiEndpoints = openapi.NewEndpoints(openapiSvc)
 				identityEndpoints = identity.NewEndpoints(identitySvc)
+				domainEndpoints = domains.NewEndpoints(domainsSvc)
 			}
 
 			// Create channel used by both the signal handler and server goroutines
@@ -120,6 +129,7 @@ func ServeCmd(ctx context.Context) *cobra.Command {
 					monitoringEndpoints,
 					openapiEndpoints,
 					identityEndpoints,
+					domainEndpoints,
 					&wg,
 					errc,
 					logger,
@@ -167,6 +177,7 @@ func handleHTTPServer(
 	monitoringEndpoints *monitoring.Endpoints,
 	openapiEndpoints *openapi.Endpoints,
 	identityEndpoints *identity.Endpoints,
+	domainEndpoints *domains.Endpoints,
 	wg *sync.WaitGroup,
 	errc chan error,
 	logger *svclogger.Logger,
@@ -205,17 +216,20 @@ func handleHTTPServer(
 		monitoringServer *monitoringsvr.Server
 		openapiServer    *openapisvr.Server
 		identityServer   *identitysvr.Server
+		domainServer     *domainsvr.Server
 	)
 	{
 		eh := errorHandler(logger)
 		monitoringServer = monitoringsvr.New(monitoringEndpoints, mux, dec, enc, eh, nil)
 		openapiServer = openapisvr.New(openapiEndpoints, mux, dec, enc, eh, nil)
 		identityServer = identitysvr.New(identityEndpoints, mux, dec, enc, eh, nil)
+		domainServer = domainsvr.New(domainEndpoints, mux, dec, enc, eh, nil)
 		if debug {
 			servers := goahttp.Servers{
 				monitoringServer,
 				openapiServer,
 				identityServer,
+				domainServer,
 			}
 			servers.Use(httpmdlwr.Debug(mux, os.Stdout))
 		}
@@ -224,6 +238,7 @@ func handleHTTPServer(
 	monitoringsvr.Mount(mux, monitoringServer)
 	openapisvr.Mount(mux, openapiServer)
 	identitysvr.Mount(mux, identityServer)
+	domainsvr.Mount(mux, domainServer)
 
 	// Wrap the multiplexer with additional middlewares. Middlewares mounted
 	// here apply to all the service endpoints.
@@ -243,6 +258,9 @@ func handleHTTPServer(
 		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 	for _, m := range identityServer.Mounts {
+		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+	}
+	for _, m := range domainServer.Mounts {
 		logger.Debug().Msgf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 
