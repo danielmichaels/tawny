@@ -7,9 +7,9 @@ import (
 )
 
 type LabelOpts struct {
+	Extra     map[string]string
 	Name      string
 	Component string
-	Extra     map[string]string
 	Core      bool
 }
 
@@ -51,8 +51,8 @@ func CreateLabels(opts ...LabelOpt) map[string]string {
 	labels := map[string]string{
 		"tawny.sh/name":       fmt.Sprintf("%s-%s", assets.AppName, args.Name),
 		"tawny.sh/component":  fmt.Sprintf("%s-%s", assets.AppName, args.Component),
-		"tawny.sh/part-of":    fmt.Sprintf("%s", assets.AppName),
-		"tawny.sh/managed-by": fmt.Sprintf("%s", assets.AppName),
+		"tawny.sh/part-of":    assets.AppName,
+		"tawny.sh/managed-by": assets.AppName,
 	}
 	if args.Core {
 		for k, v := range labels {
