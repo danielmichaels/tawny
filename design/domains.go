@@ -15,14 +15,32 @@ var _ = Service("domains", func() {
 		Description("List all domains which this user has access to manage")
 		Payload(func() {
 			apiKeyAuth()
+			Attribute("app_id", String, func() { Example("my-app") })
 			paginationPayload()
+			Required(apiKeyName, "app_id")
 		})
 		Result(DomainsResult)
 		HTTP(func() {
-			GET("/")
+			GET("/{app_id}")
 			Response(StatusOK)
 			Header(apiKeyHeader)
 			paginationParams()
+			commonResponses()
+		})
+	})
+	Method("createDomain", func() {
+		Description("Create a new domain")
+		Payload(func() {
+			apiKeyAuth()
+			Attribute("domain", String, func() { Example("example.com") })
+			Attribute("app_id", String, func() { Example("my-app") })
+			Required(apiKeyName, "domain", "app_id")
+		})
+		Result(DomainResult)
+		HTTP(func() {
+			POST("/{app_id}")
+			Response(StatusCreated)
+			Header(apiKeyHeader)
 			commonResponses()
 		})
 	})

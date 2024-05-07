@@ -117,7 +117,6 @@ func apiKeyAuth() {
 		String,
 		func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
 	)
-	Required(apiKeyName)
 }
 
 var PaginationMetadata = Type("PaginationMetadata", func() {

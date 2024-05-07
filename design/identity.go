@@ -14,12 +14,7 @@ var _ = Service("identity", func() {
 		Description("Create a new user. This will also generate a new team for that user.")
 		Payload(func() {
 			Attribute("user", UserIn)
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user", apiKeyName)
 		})
 		Result(UserResult)
@@ -58,6 +53,7 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			apiKeyAuth()
 			paginationPayload()
+			Required(apiKeyName)
 		})
 		Result(UsersResult)
 		HTTP(func() {
@@ -73,12 +69,7 @@ var _ = Service("identity", func() {
 		Description("Create a new team")
 		Payload(func() {
 			Attribute("team", TeamIn)
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("team", apiKeyName)
 		})
 		Result(TeamResult)
@@ -94,12 +85,7 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			Attribute("user_id", String, func() { Example("user_0000000"); Pattern(userRx) })
 			Attribute("team_id", String, func() { Example("team_0000000"); Pattern(teamRx) })
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user_id", "team_id", apiKeyName)
 		})
 		Result(TeamResult)
@@ -115,12 +101,7 @@ var _ = Service("identity", func() {
 		Payload(func() {
 			Attribute("user_id", String, func() { Example("user_0000000"); Pattern(userRx) })
 			Attribute("team_id", String, func() { Example("team_0000000"); Pattern(teamRx) })
-			APIKey(
-				apiKeyScheme,
-				apiKeyName,
-				String,
-				func() { Description("API key"); Example("key_00000000000000000000"); Pattern(keyRx) },
-			)
+			apiKeyAuth()
 			Required("user_id", "team_id", apiKeyName)
 		})
 		Result(Empty)

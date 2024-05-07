@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+
 	"github.com/danielmichaels/tawny/gen/domains"
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/auth"
@@ -20,7 +21,11 @@ type domainssrvc struct {
 }
 
 // NewDomains returns the domains service implementation.
-func NewDomains(logger *logger.Logger, db *store.Queries, kclient *k8sclient.K8sClient) domains.Service {
+func NewDomains(
+	logger *logger.Logger,
+	db *store.Queries,
+	kclient *k8sclient.K8sClient,
+) domains.Service {
 	return &domainssrvc{logger, db, kclient}
 }
 
@@ -40,15 +45,18 @@ func (s *domainssrvc) APIKeyAuth(
 	return ctx, nil
 }
 
-// List all domains which this user has access to manage
-func (s *domainssrvc) ListDomains(ctx context.Context, p *domains.ListDomainsPayload) (res *domains.DomainsResult, err error) {
-	res = &domains.DomainsResult{}
-	pods, err := s.kclient.ListDomains(ctx, "tawny")
-	if err != nil {
-		return nil, err
-	}
-	for _, pod := range pods.Items {
-		s.logger.Info().Msgf("Pod: %v", pod.GetName())
-	}
-	return
+func (s *domainssrvc) ListDomains(
+	ctx context.Context,
+	payload *domains.ListDomainsPayload,
+) (res *domains.DomainsResult, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *domainssrvc) CreateDomain(
+	ctx context.Context,
+	payload *domains.CreateDomainPayload,
+) (res *domains.DomainResult, err error) {
+	//TODO implement me
+	panic("implement me")
 }
