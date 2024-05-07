@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/danielmichaels/tawny/gen/domains"
-	"github.com/danielmichaels/tawny/internal/k8sclient"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +11,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/danielmichaels/tawny/gen/domains"
+	"github.com/danielmichaels/tawny/internal/k8sclient"
 
 	"github.com/danielmichaels/tawny/gen/identity"
 	"github.com/danielmichaels/tawny/internal/config"
