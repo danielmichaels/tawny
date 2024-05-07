@@ -25,16 +25,16 @@ func ingressRouteNameGenerator(name, namespace, entryPoint string) string {
 	return fmt.Sprintf("%s-%s-%s-%s", namespace, name, entryPoint, DefaultIngressRouteName)
 }
 
-func (k K8sClient) ListDomains(
+func (k K8sClient) ListIngresses(
 	ctx context.Context,
 	namespace string,
 ) (*unstructured.UnstructuredList, error) {
-	// todo make typed; change name to list ingresses
+	// todo make typed
 	gvr := NewGVR("traefik.io/v1alpha1/ingressroutes")
 	res, err := k.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "traefik.io",
-		Version:  "v1alpha1",
-		Resource: "ingressroutes",
+		Group:    gvr.g,
+		Version:  gvr.v,
+		Resource: gvr.r,
 	}).Namespace(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

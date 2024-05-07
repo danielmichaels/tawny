@@ -3,6 +3,7 @@ package k8sclient
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/client-go/util/retry"
 
 	cm "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -13,15 +14,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func (k K8sClient) ListCertificates(ctx context.Context, namespace string) (*unstructured.UnstructuredList, error) {
 func CreateCertSecretName(name string) string {
 	return fmt.Sprintf(DefaultCertSecretName, name)
 }
 
+func (k K8sClient) ListCertificates(
+	ctx context.Context,
+	namespace string,
+) (*unstructured.UnstructuredList, error) {
+	// todo: make typed
+	gvr := NewGVR("cert-manager.io/v1/certificates")
 	res, err := k.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1",
-		Resource: "certificates",
+		Group:    gvr.g,
+		Version:  gvr.v,
+		Resource: gvr.r,
 	}).Namespace(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
